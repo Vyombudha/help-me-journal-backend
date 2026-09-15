@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+
+enum ContainerType{
+    JOURNAL
+    TECHNICAL_NOTE
+}
+
+enum ProjectStatus{
+    IN_PROGRESS
+    COMPLETED
+    ABANDONED
+}
+
+enum Mood {
+  HAPPY
+  CALM
+  SAD
+  ANGRY
+  ANXIOUS
+  EXCITED
+  TIRED
+  NEUTRAL
+}
+
+model User{
+    id String @id 
+    email String @unique
+    name String?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    projects Project[]
+}
+
+
+model Project{
+    id String @id @default(uuid())
+    name String 
+    description String 
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    ownerId   String
+    owner  User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+    containers Container[]
+    status ProjectStatus @default(IN_PROGRESS)
+    @@unique([ownerId,name])
+}
+
+
+model Container{
+    id String @id @default(uuid())
+    title String  
+    projectId String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    entries Entry[]
+    type ContainerType @default(JOURNAL)
+    templateConfig Json?
+    moods Mood[]
+    @@unique([projectId,title])
+}
+
+model Entry{
+    id String @id @default(uuid())
+    title String 
+    content String
+    order Int
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    containerId String
+    container Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
+    @@unique([containerId,title])
+    @@index([containerId,order])
+}
+
+
+
+
