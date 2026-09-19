@@ -25,7 +25,6 @@ ProjectsRouter.get(
   asyncHandler(ProjectsController.get),
 );
 
-
 ProjectsRouter.patch(
   "/:projectId",
   validateSchema(projectIdParamSchema, "params"),

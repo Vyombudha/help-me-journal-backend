@@ -5,7 +5,7 @@ import { NotFoundError } from "../../shared/errors/AppError.js";
 const createProject = async (
   ownerId: string,
   name: string,
-  description: string
+  description: string,
 ): Promise<Project> => {
   return await prisma.project.create({
     data: { ownerId, name, description },
@@ -37,12 +37,12 @@ const updateProjectName = async (
   ownerId: string,
   projectId: string,
   newName: string,
-  newDescription: string
+  newDescription: string,
 ): Promise<Project> => {
   return await prisma.project.update({
     data: {
       name: newName,
-      description: newDescription
+      description: newDescription,
     },
     where: {
       ownerId,

@@ -1,15 +1,15 @@
 declare global {
-    namespace Express {
-        interface Request {
-            userId: string;
-        }
+  namespace Express {
+    interface Request {
+      userId: string;
     }
+  }
 }
 
-export type RequestPart = 'body' | 'params' | 'query';
+export type RequestPart = "body" | "params" | "query";
 
-export { };
+export {};
 export interface SuccessResponse<T = unknown> {
-    success: true;
-    data: T;
+  success: true;
+  data: T;
 }

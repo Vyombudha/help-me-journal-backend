@@ -1,2 +1,1 @@
-export  {ProjectsRouter} from "./projects.route.js";
-
+export { ProjectsRouter } from "./projects.route.js";
