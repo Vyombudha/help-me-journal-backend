@@ -65,7 +65,6 @@ const updateConainerTitle = async (
   const userId = req.userId;
   const { containerId } = req.params;
   const body: UpdateContainerInput = req.body;
-
   const updateConainer = await ContainerService.updateName(
     userId,
     containerId,

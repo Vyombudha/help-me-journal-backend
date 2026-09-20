@@ -11,7 +11,7 @@ export type newContainerInput = z.infer<typeof newContainerSchema>;
 
 export const updateContainerSchema = z.object({
   newTitle: z.string().trim().min(1).max(100),
-  newMoods: z.array(z.enum(Mood)),
+  newMoods: z.array(z.enum(Mood)).optional(),
 });
 
 export type UpdateContainerInput = z.infer<typeof updateContainerSchema>;
