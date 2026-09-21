@@ -61,7 +61,7 @@ const getContainer = async (
   });
 };
 
-const updateContainerTitle = async (
+const updateContainerData = async (
   ownerId: string,
   containerId: string,
   newTitle: string,
@@ -113,7 +113,7 @@ const ContainerService = {
   get: getContainer,
   new: createContainer,
   getAll: getAllContainers,
-  updateName: updateContainerTitle,
+  updateName: updateContainerData,
   delete: deleteContainer,
 };
 

@@ -78,7 +78,6 @@ model Entry{
     updatedAt DateTime @updatedAt
     containerId String
     container Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
-    @@unique([containerId,title])
     @@index([containerId,order])
 }
 
