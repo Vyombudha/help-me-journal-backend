@@ -1,6 +1,5 @@
 import { Entry } from "../../../generated/prisma/client.js";
 import { prisma } from "../../shared/db/prisma.js";
-import { NotFoundError } from "../../shared/errors/AppError.js";
 
 const createEntry = async (
   ownerId: string,
@@ -82,7 +81,7 @@ const updateEntryData = async (
   newTitle: string | undefined,
   newContent: string | undefined,
 ): Promise<Entry> => {
-  if (newTitle && newContent) {
+  if ((newTitle && newContent) || (!newTitle && !newContent)) {
     return await prisma.entry.update({
       data: {
         title: newTitle,
@@ -111,7 +110,7 @@ const updateEntryData = async (
         },
       },
     });
-  } else if (!newContent && newTitle) {
+  } else {
     return await prisma.entry.update({
       data: {
         title: newTitle,
@@ -125,8 +124,6 @@ const updateEntryData = async (
         },
       },
     });
-  } else {
-    return await getEntry(ownerId, entryId);
   }
 };
 
