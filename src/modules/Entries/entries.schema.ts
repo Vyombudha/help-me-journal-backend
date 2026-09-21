@@ -8,8 +8,8 @@ export const newEntrySchema = z.object({
 export type newEntryInput = z.infer<typeof newEntrySchema>;
 
 export const updateEntrySchema = z.object({
-  newTitle: z.string().trim().min(0).max(100).optional(),
-  newContent: z.string().min(0).optional(),
+  newTitle: z.string().trim().max(100).optional(),
+  newContent: z.string().optional(),
 });
 
 export type UpdateEntryInput = z.infer<typeof updateEntrySchema>;
