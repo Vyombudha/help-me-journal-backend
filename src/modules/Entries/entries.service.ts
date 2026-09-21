@@ -78,53 +78,23 @@ const getEntry = async (ownerId: string, entryId: string): Promise<Entry> => {
 const updateEntryData = async (
   ownerId: string,
   entryId: string,
-  newTitle: string | undefined,
-  newContent: string | undefined,
+  newTitle?: string,
+  newContent?: string,
 ): Promise<Entry> => {
-  if ((newTitle && newContent) || (!newTitle && !newContent)) {
-    return await prisma.entry.update({
-      data: {
-        title: newTitle,
-        content: newContent,
-      },
-      where: {
-        id: entryId,
-        container: {
-          project: {
-            ownerId,
-          },
+  return prisma.entry.update({
+    where: {
+      id: entryId,
+      container: {
+        project: {
+          ownerId,
         },
       },
-    });
-  } else if (!newTitle && newContent) {
-    return await prisma.entry.update({
-      data: {
-        content: newContent,
-      },
-      where: {
-        id: entryId,
-        container: {
-          project: {
-            ownerId,
-          },
-        },
-      },
-    });
-  } else {
-    return await prisma.entry.update({
-      data: {
-        title: newTitle,
-      },
-      where: {
-        id: entryId,
-        container: {
-          project: {
-            ownerId,
-          },
-        },
-      },
-    });
-  }
+    },
+    data: {
+      ...(newTitle !== undefined && { title: newTitle }),
+      ...(newContent !== undefined && { content: newContent }),
+    },
+  });
 };
 
 const deleteEntry = async (ownerId: string, entryId: string): Promise<void> => {
