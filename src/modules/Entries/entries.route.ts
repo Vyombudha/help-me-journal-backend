@@ -8,6 +8,7 @@ import {
   updateEntrySchema,
 } from "./entries.schema.js";
 import { EntryController } from "./entries.controller.js";
+import { writeLimiter } from "../../shared/middleware/rateLimiter.middleware.js";
 
 const EntriesRouter = Router();
 const ContainerEntriesRouter = Router({ mergeParams: true });
@@ -38,6 +39,7 @@ ContainerEntriesRouter.get(
 );
 ContainerEntriesRouter.post(
   "/",
+  writeLimiter,
   validateSchema(containerIdParamSchema, "params"),
   validateSchema(newEntrySchema),
   asyncHandler(EntryController.new),

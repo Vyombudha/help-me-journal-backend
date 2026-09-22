@@ -14,6 +14,7 @@ import {
 import { globalErrorHandler } from "./shared/middleware/errorHandler.middleware.js";
 import helmet from "helmet";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 
 const app = express();
 
@@ -23,8 +24,12 @@ app.use(
     origin: FRONTEND_URL,
   }),
 );
+if (process.env.TRUST_PROXY) {
+  app.set("trust proxy", process.env.TRUST_PROXY);
+}
 
 app.use(helmet());
+app.use(rateLimit);
 app.use(clerkMiddleware());
 app.use(express.json());
 app.use(requireAuth);
