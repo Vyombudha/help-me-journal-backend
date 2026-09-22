@@ -2,7 +2,7 @@ import "dotenv/config";
 import express from "express";
 import { clerkMiddleware } from "@clerk/express";
 import { ProjectsRouter } from "./modules/Projects/index.js";
-import { requireAuth } from "./shared/middleware/index.js";
+import { apiLimiter, requireAuth } from "./shared/middleware/index.js";
 import {
   ContainersRouter,
   ProjectContainersRouter,
@@ -29,7 +29,7 @@ if (process.env.TRUST_PROXY) {
 }
 
 app.use(helmet());
-app.use(rateLimit);
+app.use(apiLimiter);
 app.use(clerkMiddleware());
 app.use(express.json());
 app.use(requireAuth);
