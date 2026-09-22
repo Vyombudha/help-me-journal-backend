@@ -1,124 +1,181 @@
-# My API
+# Help Me Journal Backend
 
-A TypeScript REST API for managing projects, containers, and entries. The API uses Express 5, Prisma 7, PostgreSQL, Zod validation, and Clerk authentication.
+This repository contains the backend API for the Help Me Journal application. It is a TypeScript service built with Express 5, Prisma 7, PostgreSQL, Clerk authentication, Zod validation, and CORS/helmet hardening.
+
+## Current project status
+
+The backend is in a working MVP state with the core journaling workflows implemented:
+
+- Project CRUD and ownership checks
+- Container CRUD scoped to projects
+- Entry CRUD scoped to containers
+- Clerk-based user sync and request authentication
+- Prisma schema and migrations for users, projects, containers, and entries
+- Input validation and centralized error handling
+
+What is not included yet:
+
+- Automated test suite
+- API contract/Swagger/OpenAPI docs
+- CI/CD pipeline or deployment configuration
+- More advanced journaling features beyond the current CRUD surface
 
 ## Requirements
 
-- Node.js 20 or newer
-- PostgreSQL
-- A Clerk application for authenticated requests
+- Node.js 20+
+- PostgreSQL database
+- Clerk application configured for authentication
+- A frontend URL if you want CORS to allow browser requests from a specific origin
 
-## Setup
+## Environment setup
 
-1. Install dependencies:
+Create a `.env` file in the project root with values like:
 
-   ```bash
-   npm install
-   ```
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE"
+CLERK_PUBLISHABLE_KEY="pk_test_..."
+CLERK_SECRET_KEY="sk_test_..."
+PORT=3000
+FRONTEND_URL="http://localhost:5173"
+```
 
-2. Create a `.env` file in the project root:
+Notes:
 
-   ```env
-   DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE"
-   CLERK_PUBLISHABLE_KEY="your-clerk-publishable-key"
-   CLERK_SECRET_KEY="your-clerk-secret-key"
-   PORT=3000
-   ```
+- `DATABASE_URL` is required for Prisma and the app database connection.
+- `FRONTEND_URL` is optional; if omitted, the app defaults to `http://localhost:5173`.
+- `PORT` is optional and defaults to `3000` when not defined.
 
-3. Generate the Prisma client and apply the development migrations:
+## Install and initialize
 
-   ```bash
-   npx prisma generate
-   npx prisma migrate dev
-   ```
+```bash
+npm install
+npx prisma generate
+npx prisma migrate dev
+```
 
-The Prisma client is generated into `generated/prisma` according to [`prisma/schema.prisma`](prisma/schema.prisma). The database URL is read by [`prisma7.config.ts`](prisma7.config.ts).
+The Prisma client is generated into `generated/prisma`, and the schema lives in `prisma/schema.prisma`.
 
-## Running the API
+## Run the API
 
-Start the development server with watch mode:
+Development mode with file watching:
 
 ```bash
 npm run dev
 ```
 
-The server listens on `http://localhost:3000` by default, or on the port set in `PORT`. To run it without watch mode, use `npm start`.
+Production-style single-run mode:
 
-Successful endpoints return JSON responses in the form `{ "success": true, "data": ... }`. All API routes require a valid Clerk-authenticated request through the global `requireAuth` middleware. Requests must include a JSON body where indicated, and validation errors are returned by the validation middleware.
+```bash
+npm start
+```
 
-## Endpoints
+The server listens on the configured `PORT` and defaults to `http://localhost:3000`.
 
-Base path: `/api/v1`
+## API behavior
+
+- All routes are mounted under `/api/v1`.
+- Every request is protected by Clerk authentication via the global `requireAuth` middleware.
+- Successful responses follow the shape:
+
+```json
+{ "success": true, "data": { ... } }
+```
+
+- Validation errors and application errors are forwarded to the global error handler.
+- This project uses Prisma relational data with cascade deletion for related project/container records.
+
+## Routes
 
 ### Projects
 
-| Method   | Path                   | Body                                                                        |
-| -------- | ---------------------- | --------------------------------------------------------------------------- |
-| `GET`    | `/projects`            | None                                                                        |
-| `POST`   | `/projects`            | `{ "name": "My project", "description": "A personal journal" }`             |
-| `GET`    | `/projects/:projectId` | None                                                                        |
-| `PATCH`  | `/projects/:projectId` | `{ "newName": "Renamed project", "newDescription": "Updated description" }` |
-| `DELETE` | `/projects/:projectId` | None                                                                        |
+| Method   | Path                          | Body                                                                        |
+| -------- | ----------------------------- | --------------------------------------------------------------------------- |
+| `GET`    | `/api/v1/projects`            | None                                                                        |
+| `POST`   | `/api/v1/projects`            | `{ "name": "My project", "description": "A personal journal" }`             |
+| `GET`    | `/api/v1/projects/:projectId` | None                                                                        |
+| `PATCH`  | `/api/v1/projects/:projectId` | `{ "newName": "Renamed project", "newDescription": "Updated description" }` |
+| `DELETE` | `/api/v1/projects/:projectId` | None                                                                        |
 
 ### Containers
 
-| Method   | Path                              | Body                                                               |
-| -------- | --------------------------------- | ------------------------------------------------------------------ |
-| `GET`    | `/projects/:projectId/containers` | None                                                               |
-| `POST`   | `/projects/:projectId/containers` | `{ "title": "Daily notes", "type": "JOURNAL", "moods": ["CALM"] }` |
-| `GET`    | `/containers/:containerId`        | None                                                               |
-| `PATCH`  | `/containers/:containerId`        | `{ "newTitle": "Updated title", "newMoods": ["HAPPY", "CALM"] }`   |
-| `DELETE` | `/containers/:containerId`        | None                                                               |
+| Method   | Path                                     | Body                                                               |
+| -------- | ---------------------------------------- | ------------------------------------------------------------------ |
+| `GET`    | `/api/v1/projects/:projectId/containers` | None                                                               |
+| `POST`   | `/api/v1/projects/:projectId/containers` | `{ "title": "Daily notes", "type": "JOURNAL", "moods": ["CALM"] }` |
+| `GET`    | `/api/v1/containers/:containerId`        | None                                                               |
+| `PATCH`  | `/api/v1/containers/:containerId`        | `{ "newTitle": "Updated title", "newMoods": ["HAPPY", "CALM"] }`   |
+| `DELETE` | `/api/v1/containers/:containerId`        | None                                                               |
 
-Supported container types are `JOURNAL` and `TECHNICAL_NOTE`. Supported moods are `HAPPY`, `CALM`, `SAD`, `ANGRY`, `ANXIOUS`, `EXCITED`, `TIRED`, and `NEUTRAL`.
+Supported container types:
+
+- `JOURNAL`
+- `TECHNICAL_NOTE`
+
+Supported moods:
+
+- `HAPPY`
+- `CALM`
+- `SAD`
+- `ANGRY`
+- `ANXIOUS`
+- `EXCITED`
+- `TIRED`
+- `NEUTRAL`
 
 ### Entries
 
-| Method   | Path                               | Body                                                              |
-| -------- | ---------------------------------- | ----------------------------------------------------------------- |
-| `GET`    | `/containers/:containerId/entries` | None                                                              |
-| `POST`   | `/containers/:containerId/entries` | `{ "title": "First note", "content": "Entry content" }`           |
-| `GET`    | `/entries/:entryId`                | None                                                              |
-| `PATCH`  | `/entries/:entryId`                | `{ "newTitle": "Updated note", "newContent": "Updated content" }` |
-| `DELETE` | `/entries/:entryId`                | None                                                              |
+| Method   | Path                                      | Body                                                               |
+| -------- | ----------------------------------------- | ------------------------------------------------------------------ |
+| `GET`    | `/api/v1/containers/:containerId/entries` | None                                                               |
+| `POST`   | `/api/v1/containers/:containerId/entries` | `{ "title": "First note", "content": "Entry content" }`            |
+| `GET`    | `/api/v1/entries/:entryId`                | None                                                               |
+| `PATCH`  | `/api/v1/entries/:entryId`                | `{ "newTitle": "Updated title", "newContent": "Updated content" }` |
+| `DELETE` | `/api/v1/entries/:entryId`                | None                                                               |
 
-Entry titles must be unique within a container. Entries are stored with an integer ordering field and are indexed by container and order. New entries are assigned the next order value in their container.
+Notes:
 
-## Data Model
+- Entry titles are unique within a container.
+- Entries keep an integer `order` value and are indexed by `containerId` and `order`.
+- New entries are assigned the next available order value within the parent container.
+
+## Data model
 
 - A user can own multiple projects.
-- A project can contain multiple containers, with unique container titles per project.
-- A container can contain multiple entries, with unique entry titles per container.
-- Projects have a status of `IN_PROGRESS`, `COMPLETED`, or `ABANDONED`; new projects default to `IN_PROGRESS`.
-- Containers support the `JOURNAL` and `TECHNICAL_NOTE` types, mood tags, and optional JSON template configuration.
-- Deleting a project or container cascades to its related records.
+- A project can contain multiple containers, and container titles are unique within a project.
+- A container can contain multiple entries, and entry titles are unique within a container.
+- Projects have a lifecycle status of `IN_PROGRESS`, `COMPLETED`, or `ABANDONED`.
+- New projects default to `IN_PROGRESS`.
+- `Container.templateConfig` is stored as an optional JSON value.
+- Deleting a project or container cascades and removes dependent records.
 
-## Project Structure
+## Project structure
 
 ```text
 src/
-	server.ts                 # Express application and route mounting
-	modules/
-		Projects/               # Project routes, validation, controllers, services
-		Containers/             # Container routes, validation, controllers, services
-		Entries/                # Entry routes, validation, controllers, services
-	shared/
-		db/                     # Prisma database client
-		middleware/             # Authentication, validation, async handlers
-generated/prisma/           # Generated Prisma client
+  app.ts                     # App setup, middleware, and route mounting
+  server.ts                  # Server bootstrap
+  modules/
+    Projects/                # Project controller, schema, service, router
+    Containers/              # Container controller, schema, service, router
+    Entries/                 # Entry controller, schema, service, router
+  shared/
+    db/                      # Prisma instance
+    middleware/              # Auth, validation, async handling, rate limiting
+    errors/                  # App-level error helpers
+    types/                   # Express typings
 prisma/
-	schema.prisma             # Database schema
-	migrations/               # Database migrations
+  schema.prisma              # Prisma schema and enums
+  migrations/                # Prisma migration history
+generated/prisma/           # Generated Prisma client output
 ```
 
-## Available Scripts
+## Available scripts
 
 | Command       | Description                         |
 | ------------- | ----------------------------------- |
 | `npm run dev` | Start the API with `tsx` watch mode |
 | `npm start`   | Start the API once                  |
 
-## Current Status
+## Summary
 
-- Project, container, and entry endpoints are implemented and mounted.
-- Automated API tests and broader API documentation are not currently included.
+This backend is a functional, auth-protected journaling API with the expected project/container/entry domain model and Prisma-backed persistence. It is suitable for local development and iterative feature work, but it does not yet include test automation or a formal public API specification.
