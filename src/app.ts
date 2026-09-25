@@ -14,16 +14,19 @@ import {
 import { globalErrorHandler } from "./shared/middleware/errorHandler.middleware.js";
 import helmet from "helmet";
 import cors from "cors";
-import rateLimit from "express-rate-limit";
-
 const app = express();
 
-const FRONTEND_URL = process.env.FRONTEND_URL ?? "http://localhost:5173";
+const FRONTEND_URL = [process.env.FRONTEND_URL, "http://localhost:5173"].filter(
+  (url): url is string => Boolean(url),
+);
+
 app.use(
   cors({
     origin: FRONTEND_URL,
+    credentials: true,
   }),
 );
+
 if (process.env.TRUST_PROXY) {
   app.set("trust proxy", process.env.TRUST_PROXY);
 }
