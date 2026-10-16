@@ -41,7 +41,7 @@ app.use("/api/v1/projects/:projectId/containers", ProjectContainersRouter);
 app.use("/api/v1/containers", ContainersRouter);
 app.use("/api/v1/containers/:containerId/entries", ContainerEntriesRouter);
 app.use("/api/v1/entries", EntriesRouter);
-
+app.get("/health", (_req, res) => res.status(200).json({ ok: true }));
 app.use(globalErrorHandler);
 
 export default app;
