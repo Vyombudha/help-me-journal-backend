@@ -33,6 +33,7 @@ if (process.env.TRUST_PROXY) {
 
 app.use(helmet());
 app.use(apiLimiter);
+app.get("/health", (_req, res) => res.status(200).json({ ok: true }));
 app.use(clerkMiddleware());
 app.use(express.json());
 app.use(requireAuth);
@@ -41,7 +42,6 @@ app.use("/api/v1/projects/:projectId/containers", ProjectContainersRouter);
 app.use("/api/v1/containers", ContainersRouter);
 app.use("/api/v1/containers/:containerId/entries", ContainerEntriesRouter);
 app.use("/api/v1/entries", EntriesRouter);
-app.get("/health", (_req, res) => res.status(200).json({ ok: true }));
 app.use(globalErrorHandler);
 
 export default app;
