@@ -1,94 +1,87 @@
 # Help Me Journal Backend
 
-This repository contains the backend API for the Help Me Journal application. It is a TypeScript service built with Express 5, Prisma 7, PostgreSQL, Clerk authentication, Zod validation, and CORS/helmet hardening.
+TypeScript REST API for Help Me Journal. It uses Express 5, PostgreSQL, Prisma 7, Clerk authentication, Zod request validation, and Helmet/CORS middleware.
 
-## Current project status
+## Features
 
-The backend is in a working MVP state with the core journaling workflows implemented:
-
-- Project CRUD and ownership checks
-- Container CRUD scoped to projects
-- Entry CRUD scoped to containers
-- Clerk-based user sync and request authentication
-- Prisma schema and migrations for users, projects, containers, and entries
-- Input validation and centralized error handling
-
-What is not included yet:
-
-- Automated test suite
-- API contract/Swagger/OpenAPI docs
-- CI/CD pipeline or deployment configuration
-- More advanced journaling features beyond the current CRUD surface
+- CRUD operations for projects, containers, and journal entries
+- Resource access scoped to the authenticated user's projects
+- First-request user synchronization from Clerk into the local database
+- Database migrations and generated Prisma client
+- Request validation, centralized error responses, and rate limiting
 
 ## Requirements
 
-- Node.js 20+
-- PostgreSQL database
-- Clerk application configured for authentication
-- A frontend URL if you want CORS to allow browser requests from a specific origin
+- Node.js version supported by Prisma 7
+- npm
+- PostgreSQL
+- A Clerk application and its backend secret key
 
-## Environment setup
+## Configuration
 
-Create a `.env` file in the project root with values like:
+Create a `.env` file in the repository root:
 
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE"
-CLERK_PUBLISHABLE_KEY="pk_test_..."
 CLERK_SECRET_KEY="sk_test_..."
+CLERK_PUBLISHABLE_KEY="pk_test_..."
 PORT=3000
 FRONTEND_URL="http://localhost:5173"
 ```
 
-Notes:
+`DATABASE_URL` and `CLERK_SECRET_KEY` are needed for the database and authenticated API. The publishable key is included for the associated Clerk frontend; the backend code uses Clerk middleware and its server-side client. `PORT` defaults to `3000`. `FRONTEND_URL` is optional; CORS allows it and `http://localhost:5173`.
 
-- `DATABASE_URL` is required for Prisma and the app database connection.
-- `FRONTEND_URL` is optional; if omitted, the app defaults to `http://localhost:5173`.
-- `PORT` is optional and defaults to `3000` when not defined.
-
-## Install and initialize
+## Install and Run
 
 ```bash
 npm install
 npx prisma generate
 npx prisma migrate dev
-```
-
-The Prisma client is generated into `generated/prisma`, and the schema lives in `prisma/schema.prisma`.
-
-## Run the API
-
-Development mode with file watching:
-
-```bash
 npm run dev
 ```
 
-Production-style single-run mode:
+The Prisma schema is `prisma/schema.prisma`; the generated client is written to `generated/prisma`. `npx prisma migrate dev` applies pending migrations to the configured development database.
 
-```bash
-npm start
+Available scripts:
+
+| Command       | Description                               |
+| ------------- | ----------------------------------------- |
+| `npm run dev` | Run `src/server.ts` with `tsx` watch mode |
+| `npm start`   | Run `src/server.ts` once with `tsx`       |
+
+The API listens at `http://localhost:3000` unless `PORT` is set. For a production deployment, build and deploy the service using your hosting environment and apply checked-in migrations with `npx prisma migrate deploy`.
+
+## Health Check
+
+`GET /health` returns `200` with `{ "ok": true }`. It does not require Clerk authentication. It is subject to the global rate limit.
+
+## Authentication and Responses
+
+All `/api/v1` endpoints require an authenticated Clerk request. Send a valid Clerk session token as a bearer token:
+
+```http
+Authorization: Bearer <CLERK_SESSION_TOKEN>
 ```
 
-The server listens on the configured `PORT` and defaults to `http://localhost:3000`.
+On the first authenticated request for a Clerk user, the API creates a local user record using the Clerk user ID and first available email address. Requests are then scoped to that user; a user cannot access another user's projects or their child resources.
 
-## API behavior
-
-- All routes are mounted under `/api/v1`.
-- Every request is protected by Clerk authentication via the global `requireAuth` middleware.
-- Successful responses follow the shape:
+Successful endpoints return HTTP `200` and use this envelope:
 
 ```json
-{ "success": true, "data": { ... } }
+{ "success": true, "data": {} }
 ```
 
-- Validation errors and application errors are forwarded to the global error handler.
-- This project uses Prisma relational data with cascade deletion for related project/container records.
+Delete responses set `data` to `null`. Errors use `{ "success": false, "message": "..." }`. Common error codes include `401` for unauthenticated requests, `404` for missing or inaccessible resources, `409` for duplicate project/container names, and `422` for invalid input.
 
-## Routes
+The global rate limit is 300 requests per IP per 15 minutes. Creating an entry has an additional limit of 20 requests per IP per minute.
+
+## API Reference
+
+All resource routes are prefixed with `/api/v1`. Path IDs must be UUIDs. Request and response bodies use JSON.
 
 ### Projects
 
-| Method   | Path                          | Body                                                                        |
+| Method   | Path                          | Request body                                                                |
 | -------- | ----------------------------- | --------------------------------------------------------------------------- |
 | `GET`    | `/api/v1/projects`            | None                                                                        |
 | `POST`   | `/api/v1/projects`            | `{ "name": "My project", "description": "A personal journal" }`             |
@@ -96,9 +89,11 @@ The server listens on the configured `PORT` and defaults to `http://localhost:30
 | `PATCH`  | `/api/v1/projects/:projectId` | `{ "newName": "Renamed project", "newDescription": "Updated description" }` |
 | `DELETE` | `/api/v1/projects/:projectId` | None                                                                        |
 
+Project creation requires a trimmed name of 1-30 characters and a description of 1-200 characters. Updates require both `newName` (1-100 characters) and `newDescription` (1-200 characters). Project status is stored in the data model but is not currently editable through the API.
+
 ### Containers
 
-| Method   | Path                                     | Body                                                               |
+| Method   | Path                                     | Request body                                                       |
 | -------- | ---------------------------------------- | ------------------------------------------------------------------ |
 | `GET`    | `/api/v1/projects/:projectId/containers` | None                                                               |
 | `POST`   | `/api/v1/projects/:projectId/containers` | `{ "title": "Daily notes", "type": "JOURNAL", "moods": ["CALM"] }` |
@@ -106,25 +101,11 @@ The server listens on the configured `PORT` and defaults to `http://localhost:30
 | `PATCH`  | `/api/v1/containers/:containerId`        | `{ "newTitle": "Updated title", "newMoods": ["HAPPY", "CALM"] }`   |
 | `DELETE` | `/api/v1/containers/:containerId`        | None                                                               |
 
-Supported container types:
-
-- `JOURNAL`
-- `TECHNICAL_NOTE`
-
-Supported moods:
-
-- `HAPPY`
-- `CALM`
-- `SAD`
-- `ANGRY`
-- `ANXIOUS`
-- `EXCITED`
-- `TIRED`
-- `NEUTRAL`
+Creation requires a title (1-100 characters), a type, and a mood array. Types are `JOURNAL` and `TECHNICAL_NOTE`. Moods are `HAPPY`, `CALM`, `SAD`, `ANGRY`, `ANXIOUS`, `EXCITED`, `TIRED`, and `NEUTRAL`. Updates require `newTitle`; `newMoods` is optional.
 
 ### Entries
 
-| Method   | Path                                      | Body                                                               |
+| Method   | Path                                      | Request body                                                       |
 | -------- | ----------------------------------------- | ------------------------------------------------------------------ |
 | `GET`    | `/api/v1/containers/:containerId/entries` | None                                                               |
 | `POST`   | `/api/v1/containers/:containerId/entries` | `{ "title": "First note", "content": "Entry content" }`            |
@@ -132,50 +113,32 @@ Supported moods:
 | `PATCH`  | `/api/v1/entries/:entryId`                | `{ "newTitle": "Updated title", "newContent": "Updated content" }` |
 | `DELETE` | `/api/v1/entries/:entryId`                | None                                                               |
 
-Notes:
+Entry creation accepts a title up to 100 characters (including an empty title) and any string content. Entry updates accept either or both of `newTitle` (up to 100 characters) and `newContent`. Entries are listed by ascending `order`; new entries receive the next order value in their container. Entry titles are not required to be unique.
 
-- Entry titles are unique within a container.
-- Entries keep an integer `order` value and are indexed by `containerId` and `order`.
-- New entries are assigned the next available order value within the parent container.
+## Data Model
 
-## Data model
+- A user owns projects; project names are unique per owner.
+- A project contains containers; container titles are unique per project.
+- A container contains entries; entry titles have no uniqueness constraint.
+- Projects have `IN_PROGRESS`, `COMPLETED`, or `ABANDONED` status and default to `IN_PROGRESS`.
+- Containers have a `JOURNAL` or `TECHNICAL_NOTE` type, a mood list, and an optional JSON `templateConfig` field.
+- Entries have a string title and content, plus an integer order indexed with the container ID.
+- Deleting a user, project, or container cascades to its dependent records.
 
-- A user can own multiple projects.
-- A project can contain multiple containers, and container titles are unique within a project.
-- A container can contain multiple entries, and entry titles are unique within a container.
-- Projects have a lifecycle status of `IN_PROGRESS`, `COMPLETED`, or `ABANDONED`.
-- New projects default to `IN_PROGRESS`.
-- `Container.templateConfig` is stored as an optional JSON value.
-- Deleting a project or container cascades and removes dependent records.
-
-## Project structure
+## Repository Layout
 
 ```text
 src/
-  app.ts                     # App setup, middleware, and route mounting
+  app.ts                     # Middleware and route mounting
   server.ts                  # Server bootstrap
-  modules/
-    Projects/                # Project controller, schema, service, router
-    Containers/              # Container controller, schema, service, router
-    Entries/                 # Entry controller, schema, service, router
-  shared/
-    db/                      # Prisma instance
-    middleware/              # Auth, validation, async handling, rate limiting
-    errors/                  # App-level error helpers
-    types/                   # Express typings
+  modules/                   # Projects, containers, and entries API modules
+  shared/                    # Database, middleware, errors, and Express types
 prisma/
-  schema.prisma              # Prisma schema and enums
-  migrations/                # Prisma migration history
-generated/prisma/           # Generated Prisma client output
+  schema.prisma              # Data model and enums
+  migrations/                # Database migration history
+generated/prisma/            # Generated Prisma client
 ```
 
-## Available scripts
+## Current Gaps
 
-| Command       | Description                         |
-| ------------- | ----------------------------------- |
-| `npm run dev` | Start the API with `tsx` watch mode |
-| `npm start`   | Start the API once                  |
-
-## Summary
-
-This backend is a functional, auth-protected journaling API with the expected project/container/entry domain model and Prisma-backed persistence. It is suitable for local development and iterative feature work, but it does not yet include test automation or a formal public API specification.
+There is no automated test suite, OpenAPI specification, CI/CD workflow, or deployment configuration in this repository yet.
