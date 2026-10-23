@@ -27,10 +27,6 @@ app.use(
   }),
 );
 
-if (process.env.TRUST_PROXY) {
-  app.set("trust proxy", process.env.TRUST_PROXY);
-}
-
 app.use(helmet());
 app.use(apiLimiter);
 app.get("/health", (_req, res) => res.status(200).json({ ok: true }));
