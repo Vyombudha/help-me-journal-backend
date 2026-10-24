@@ -5,7 +5,6 @@ import {
   newContainerSchema,
   updateContainerSchema,
 } from "./containers.schema.js";
-import { asyncHandler } from "../../shared/middleware/asyncHandler.middleware.js";
 import { ContainerController } from "./containers.controller.js";
 import { projectIdParamSchema } from "../Projects/projects.schema.js";
 
@@ -16,32 +15,32 @@ const ProjectContainersRouter = Router({ mergeParams: true });
 ContainersRouter.get(
   "/:containerId",
   validateSchema(containerIdParamSchema, "params"),
-  asyncHandler(ContainerController.get),
+  ContainerController.get,
 );
 
 ContainersRouter.patch(
   "/:containerId",
   validateSchema(containerIdParamSchema, "params"),
   validateSchema(updateContainerSchema),
-  asyncHandler(ContainerController.updateTitle),
+  ContainerController.updateTitle,
 );
 ContainersRouter.delete(
   "/:containerId",
   validateSchema(containerIdParamSchema, "params"),
-  asyncHandler(ContainerController.delete),
+  ContainerController.delete,
 );
 
 // Mounted at /projects/:projectId/containers
 ProjectContainersRouter.get(
   "/",
   validateSchema(projectIdParamSchema, "params"),
-  asyncHandler(ContainerController.getAll),
+  ContainerController.getAll,
 );
 ProjectContainersRouter.post(
   "/",
   validateSchema(projectIdParamSchema, "params"),
   validateSchema(newContainerSchema),
-  asyncHandler(ContainerController.new),
+  ContainerController.new,
 );
 
 export { ContainersRouter, ProjectContainersRouter };

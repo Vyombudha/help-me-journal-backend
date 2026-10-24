@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 
@@ -59,28 +59,13 @@ model Container{
     id String @id @default(uuid())
     title String  
     projectId String
+    content String @default("")
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
     project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    entries Entry[]
     type ContainerType @default(JOURNAL)
     templateConfig Json?
-    moods Mood[]
+   moods Json @default("[]")
     @@unique([projectId,title])
 }
-
-model Entry{
-    id String @id @default(uuid())
-    title String 
-    content String
-    order Int
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-    containerId String
-    container Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
-    @@index([containerId,order])
-}
-
-
-
 
