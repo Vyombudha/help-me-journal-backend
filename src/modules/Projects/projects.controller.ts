@@ -1,90 +1,109 @@
-import { Project } from "../../../generated/prisma/client.js";
+import type { Project } from "../../../generated/prisma/client.js";
 import ProjectsService from "./projects.service.js";
-import { Request, Response } from "express";
 import {
-  newProjectInput,
-  UpdateProjectInput,
-  ProjectIdParam,
+  type newProjectInput,
+  type UpdateProjectInput,
+  type ProjectIdParam,
+  newProjectSchema,
+  projectIdParamSchema,
+  updateProjectSchema,
 } from "./projects.schema.js";
-import { SuccessResponse } from "../../shared/types/express.js";
+import type { SuccessResponse } from "../../shared/types/SuccessResponse.js";
+import { createFactory } from "hono/factory";
+import type { AppEnv } from "../../shared/types/hono.js";
+import { sValidator } from "@hono/standard-validator";
 
-const newProject = async (
-  req: Request,
-  res: Response<SuccessResponse<Project>>,
-): Promise<void> => {
-  const userId = req.userId;
-  const body: newProjectInput = req.body;
-  const newProject = await ProjectsService.new(
-    userId,
-    body.name,
-    body.description,
-  );
-  res.status(200).json({
-    success: true,
-    data: newProject,
-  });
-};
+const factory = createFactory<AppEnv>();
 
-const getAllProjects = async (
-  req: Request,
-  res: Response<SuccessResponse<Array<Project>>>,
-): Promise<void> => {
-  const userId = req.userId;
+const newProject = factory.createHandlers(
+  sValidator("json", newProjectSchema),
+  async (c) => {
+    const userId = c.get("userId");
+    const body: newProjectInput = c.req.valid("json");
+    const newProject = await ProjectsService.new(
+      userId,
+      body.name,
+      body.description,
+    );
+    return c.json(
+      {
+        success: true,
+        data: newProject,
+      },
+      200,
+    );
+  },
+);
+
+const getAllProjects = factory.createHandlers(async (c) => {
+  const userId = c.get("userId");
   const projects = await ProjectsService.getAll(userId);
-  res.status(200).json({
-    success: true,
-    data: projects,
-  });
-};
-
-const getProject = async (
-  req: Request<ProjectIdParam>,
-  res: Response<SuccessResponse<Project>>,
-): Promise<void> => {
-  const userId = req.userId;
-  const { projectId } = req.params;
-  const project = await ProjectsService.get(userId, projectId);
-
-  res.status(200).json({
-    success: true,
-    data: project,
-  });
-};
-
-const updateProjectName = async (
-  req: Request<ProjectIdParam>,
-  res: Response<SuccessResponse<Project>>,
-): Promise<void> => {
-  const userId = req.userId;
-  const { projectId } = req.params;
-  const body: UpdateProjectInput = req.body;
-
-  const updatedProject = await ProjectsService.updateName(
-    userId,
-    projectId,
-    body.newName,
-    body.newDescription,
+  return c.json(
+    {
+      success: true,
+      data: projects,
+    },
+    200,
   );
+});
 
-  res.status(200).json({
-    success: true,
-    data: updatedProject,
-  });
-};
+const getProject = factory.createHandlers(
+  sValidator("param", projectIdParamSchema), // add this
+  async (c) => {
+    const userId = c.get("userId");
+    const { projectId } = c.req.valid("param");
+    const project = await ProjectsService.get(userId, projectId);
 
-const deleteProject = async (
-  req: Request<ProjectIdParam>,
-  res: Response<SuccessResponse<null>>,
-): Promise<void> => {
-  const userId = req.userId;
-  const { projectId } = req.params;
-  await ProjectsService.delete(userId, projectId);
+    return c.json(
+      {
+        success: true,
+        data: project,
+      },
+      200,
+    );
+  },
+);
 
-  res.status(200).json({
-    success: true,
-    data: null,
-  });
-};
+const updateProjectName = factory.createHandlers(
+  sValidator("param", projectIdParamSchema),
+  sValidator("json", updateProjectSchema),
+  async (c) => {
+    const userId = c.get("userId");
+    const { projectId } = c.req.valid("param");
+    const body: UpdateProjectInput = c.req.valid("json");
+
+    const updatedProject = await ProjectsService.updateName(
+      userId,
+      projectId,
+      body.newName,
+      body.newDescription,
+    );
+
+    return c.json(
+      {
+        success: true,
+        data: updatedProject,
+      },
+      200,
+    );
+  },
+);
+const deleteProject = factory.createHandlers(
+  sValidator("param", projectIdParamSchema),
+  async (c) => {
+    const userId = c.get("userId");
+    const { projectId } = c.req.valid("param");
+    await ProjectsService.delete(userId, projectId);
+
+    return c.json(
+      {
+        success: true,
+        data: null,
+      },
+      200,
+    );
+  },
+);
 
 export const ProjectsController = {
   new: newProject,

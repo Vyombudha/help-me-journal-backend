@@ -1,101 +1,128 @@
-import { Container } from "../../../generated/prisma/client.js";
-import { Request, Response } from "express";
-import {
-  newContainerInput,
-  updateContainerSchema,
-  ContainerIdParam,
-  UpdateContainerInput,
-} from "./containers.schema.js";
-import { SuccessResponse } from "../../shared/types/express.js";
+import type { Container } from "../../../generated/prisma/client.js";
 import ContainerService from "./containers.service.js";
-import { ProjectIdParam } from "../Projects/projects.schema.js";
+import {
+  type newContainerInput,
+  type UpdateContainerInput,
+  containerIdParamSchema,
+  newContainerSchema,
+  updateContainerSchema,
+} from "./containers.schema.js";
+import { createFactory } from "hono/factory";
+import type { AppEnv } from "../../shared/types/hono.js";
+import { sValidator } from "@hono/standard-validator";
+import { projectIdParamSchema } from "../Projects/projects.schema.js";
 
-const newContainer = async (
-  req: Request<ProjectIdParam>,
-  res: Response<SuccessResponse<Container>>,
-): Promise<void> => {
-  const userId = req.userId;
-  const { projectId } = req.params;
-  const body: newContainerInput = req.body;
-  const newContainer = await ContainerService.new(
-    userId,
-    projectId,
-    body.title,
-    body.type,
-    body.moods,
-  );
-  res.status(200).json({
-    success: true,
-    data: newContainer,
-  });
-};
+const factory = createFactory<AppEnv>();
 
-const getAllContainers = async (
-  req: Request<ProjectIdParam>,
-  res: Response<SuccessResponse<Array<Container>>>,
-): Promise<void> => {
-  const userId = req.userId;
-  const { projectId } = req.params;
+const newContainer = factory.createHandlers(
+  sValidator("param", projectIdParamSchema),
+  sValidator("json", newContainerSchema),
+  async (c) => {
+    const userId = c.get("userId");
+    const { projectId } = c.req.valid("param");
+    const body: newContainerInput = c.req.valid("json");
 
-  const containers = await ContainerService.getAll(userId, projectId);
-  res.status(200).json({
-    success: true,
-    data: containers,
-  });
-};
+    const newContainer = await ContainerService.new(
+      userId,
+      projectId,
+      body.title,
+      body.type,
+      body.moods,
+    );
 
-const getContainer = async (
-  req: Request<ContainerIdParam>,
-  res: Response<SuccessResponse<Container>>,
-): Promise<void> => {
-  const userId = req.userId;
-  const { containerId } = req.params;
-  const container = await ContainerService.get(userId, containerId);
+    return c.json(
+      {
+        success: true,
+        data: newContainer,
+      },
+      200,
+    );
+  },
+);
 
-  res.status(200).json({
-    success: true,
-    data: container,
-  });
-};
+const getAllContainers = factory.createHandlers(
+  sValidator("param", projectIdParamSchema),
+  async (c) => {
+    const userId = c.get("userId");
+    const { projectId } = c.req.valid("param");
 
-const updateConainerTitle = async (
-  req: Request<ContainerIdParam>,
-  res: Response<SuccessResponse<Container>>,
-): Promise<void> => {
-  const userId = req.userId;
-  const { containerId } = req.params;
-  const body: UpdateContainerInput = req.body;
-  const updateConainer = await ContainerService.updateName(
-    userId,
-    containerId,
-    body.newTitle,
-    body.newMoods,
-  );
+    const containers = await ContainerService.getAll(userId, projectId);
 
-  res.status(200).json({
-    success: true,
-    data: updateConainer,
-  });
-};
+    return c.json(
+      {
+        success: true,
+        data: containers,
+      },
+      200,
+    );
+  },
+);
 
-const deleteContainer = async (
-  req: Request<ContainerIdParam>,
-  res: Response<SuccessResponse<null>>,
-): Promise<void> => {
-  const userId = req.userId;
-  const { containerId } = req.params;
-  await ContainerService.delete(userId, containerId);
+const getContainer = factory.createHandlers(
+  sValidator("param", containerIdParamSchema),
+  async (c) => {
+    const userId = c.get("userId");
+    const { containerId } = c.req.valid("param");
 
-  res.status(200).json({
-    success: true,
-    data: null,
-  });
-};
+    const container = await ContainerService.get(userId, containerId);
+
+    return c.json(
+      {
+        success: true,
+        data: container,
+      },
+      200,
+    );
+  },
+);
+
+const updateContainerTitle = factory.createHandlers(
+  sValidator("param", containerIdParamSchema),
+  sValidator("json", updateContainerSchema),
+  async (c) => {
+    const userId = c.get("userId");
+    const { containerId } = c.req.valid("param");
+    const body: UpdateContainerInput = c.req.valid("json");
+
+    const updatedContainer = await ContainerService.updateName(
+      userId,
+      containerId,
+      body.newTitle,
+      body.newMoods,
+    );
+
+    return c.json(
+      {
+        success: true,
+        data: updatedContainer,
+      },
+      200,
+    );
+  },
+);
+
+const deleteContainer = factory.createHandlers(
+  sValidator("param", containerIdParamSchema),
+  async (c) => {
+    const userId = c.get("userId");
+    const { containerId } = c.req.valid("param");
+
+    await ContainerService.delete(userId, containerId);
+
+    return c.json(
+      {
+        success: true,
+        data: null,
+      },
+      200,
+    );
+  },
+);
 
 export const ContainerController = {
   new: newContainer,
   get: getContainer,
   getAll: getAllContainers,
-  updateTitle: updateConainerTitle,
+  updateTitle: updateContainerTitle,
   delete: deleteContainer,
 };

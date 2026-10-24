@@ -1,46 +1,18 @@
-import { Router } from "express";
-import { validateSchema } from "../../shared/middleware/validator.middleware.js";
-import {
-  containerIdParamSchema,
-  newContainerSchema,
-  updateContainerSchema,
-} from "./containers.schema.js";
+import type { AppEnv } from "../../shared/types/hono.js";
 import { ContainerController } from "./containers.controller.js";
-import { projectIdParamSchema } from "../Projects/projects.schema.js";
+import { Hono } from "hono";
 
-const ContainersRouter = Router();
-const ProjectContainersRouter = Router({ mergeParams: true });
+const ContainersRouter = new Hono<AppEnv>();
+const ProjectContainersRouter = new Hono<AppEnv>();
 
 // Mounted at /containers/
-ContainersRouter.get(
-  "/:containerId",
-  validateSchema(containerIdParamSchema, "params"),
-  ContainerController.get,
-);
+ContainersRouter.get("/:containerId", ...ContainerController.get);
 
-ContainersRouter.patch(
-  "/:containerId",
-  validateSchema(containerIdParamSchema, "params"),
-  validateSchema(updateContainerSchema),
-  ContainerController.updateTitle,
-);
-ContainersRouter.delete(
-  "/:containerId",
-  validateSchema(containerIdParamSchema, "params"),
-  ContainerController.delete,
-);
+ContainersRouter.patch("/:containerId", ...ContainerController.updateTitle);
+ContainersRouter.delete("/:containerId", ...ContainerController.delete);
 
 // Mounted at /projects/:projectId/containers
-ProjectContainersRouter.get(
-  "/",
-  validateSchema(projectIdParamSchema, "params"),
-  ContainerController.getAll,
-);
-ProjectContainersRouter.post(
-  "/",
-  validateSchema(projectIdParamSchema, "params"),
-  validateSchema(newContainerSchema),
-  ContainerController.new,
-);
+ProjectContainersRouter.get("/", ...ContainerController.getAll);
+ProjectContainersRouter.post("/", ...ContainerController.new);
 
 export { ContainersRouter, ProjectContainersRouter };

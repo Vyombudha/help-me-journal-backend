@@ -1,16 +1,22 @@
 import { ZodError } from "zod";
 
+import type { ContentfulStatusCode } from "hono/utils/http-status";
+
 export class AppError extends Error {
-  public readonly statusCode: number;
+  public readonly statusCode: ContentfulStatusCode;
   public readonly isOperational: boolean;
 
-  constructor(message: string, statusCode = 500, isOperational = true) {
+  constructor(
+    message: string,
+    statusCode: ContentfulStatusCode = 500,
+    isOperational = true,
+  ) {
     super(message);
+    this.name = new.target.name;
     this.statusCode = statusCode;
     this.isOperational = isOperational;
-
-    Object.setPrototypeOf(this, AppError.prototype);
-    Error.captureStackTrace(this, this.constructor);
+    Object.setPrototypeOf(this, new.target.prototype);
+    Error.captureStackTrace?.(this, new.target);
   }
 }
 

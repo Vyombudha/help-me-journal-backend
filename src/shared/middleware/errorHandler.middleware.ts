@@ -1,59 +1,57 @@
-import { Response, Request, NextFunction } from "express";
-import { AppError } from "../errors/AppError.js";
+// shared/middleware/errorHandler.middleware.ts
+import type { ContentfulStatusCode } from "hono/utils/http-status";
+
+export interface AppErrorLike extends Error {
+  statusCode: ContentfulStatusCode;
+  errors?: { path: string; message: string }[];
+}
+
+export const isAppError = (err: unknown): err is AppErrorLike =>
+  err instanceof Error &&
+  "statusCode" in err &&
+  typeof (err as { statusCode: unknown }).statusCode === "number";
+// shared/middleware/errorHandler.middleware.ts
+import type { ErrorHandler } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { Prisma } from "../../../generated/prisma/client.js";
+import type { AppEnv } from "../types/hono.js";
 
-function isAppError(err: unknown): err is AppError {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "statusCode" in err &&
-    typeof (err as any).statusCode === "number"
-  );
-}
-
-export async function globalErrorHandler(
-  err: unknown,
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) {
-  // this handles all custom errors
+export const errorHandler: ErrorHandler<AppEnv> = (err, c) => {
+  // Your custom errors
   if (isAppError(err)) {
-    return res.status(err.statusCode).json({
-      success: false,
-      message: err.message,
-    });
+    return c.json(
+      {
+        success: false,
+        message: err.message,
+        ...(err.errors && { errors: err.errors }),
+      },
+      err.statusCode,
+    );
   }
 
-  // known Prisma errors (e.g. P2025 = record not found)
+  // Hono / middleware errors (clerk, validators, etc.)
+  if (err instanceof HTTPException) {
+    return c.json({ success: false, message: err.message }, err.status);
+  }
+
+  // Known Prisma errors
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
-    if (err.code === "P2025") {
-      return res.status(404).json({
-        success: false,
-        message: "Resource not found",
-      });
+    switch (err.code) {
+      case "P2025":
+        return c.json({ success: false, message: "Resource not found" }, 404);
+      case "P2002":
+        return c.json({ success: false, message: "Duplicate entry" }, 409);
+      case "P2003":
+        return c.json(
+          { success: false, message: "Related resource does not exist" },
+          409,
+        );
     }
-    if (err.code === "P2002") {
-      return res.status(409).json({
-        success: false,
-        message: "Duplicate entry",
-      });
-    }
-    console.error(`Prisma error [${err.code}]: ${err.message}`);
-    return res.status(400).json({
-      success: false,
-      message: "Database error",
-    });
+    console.error(`Prisma error [${err.code}]:`, err);
+    return c.json({ success: false, message: "Internal server error" }, 500);
   }
 
-  // generic errors
-  const message = err instanceof Error ? err.message : "Unknown error";
-  console.error(`Error: ${message}`);
-
-  // generic errors handled here
-
-  return res.status(500).json({
-    success: false,
-    message: `Internal Server Error`,
-  });
-}
+  // Everything else: log full error, return nothing sensitive
+  console.error(err);
+  return c.json({ success: false, message: "Internal server error" }, 500);
+};

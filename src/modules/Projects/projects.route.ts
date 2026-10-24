@@ -1,40 +1,16 @@
-import { Router } from "express";
-
-import { validateSchema } from "../../shared/middleware/validator.middleware.js";
+import { Hono } from "hono";
+import type { AppEnv } from "../../shared/types/hono.js";
 import { ProjectsController } from "./projects.controller.js";
-import {
-  newProjectSchema,
-  projectIdParamSchema,
-  updateProjectSchema,
-} from "./projects.schema.js";
+const ProjectsRouter = new Hono<AppEnv>();
 
-const ProjectsRouter = Router();
+ProjectsRouter.get("/", ...ProjectsController.getAll);
 
-ProjectsRouter.get("/", ProjectsController.getAll);
+ProjectsRouter.post("/", ...ProjectsController.new);
 
-ProjectsRouter.post(
-  "/",
-  validateSchema(newProjectSchema, "body"),
-  ProjectsController.new,
-);
+ProjectsRouter.get("/:projectId", ...ProjectsController.get);
 
-ProjectsRouter.get(
-  "/:projectId",
-  validateSchema(projectIdParamSchema, "params"),
-  ProjectsController.get,
-);
+ProjectsRouter.patch("/:projectId", ...ProjectsController.updateName);
 
-ProjectsRouter.patch(
-  "/:projectId",
-  validateSchema(projectIdParamSchema, "params"),
-  validateSchema(updateProjectSchema, "body"),
-  ProjectsController.updateName,
-);
-
-ProjectsRouter.delete(
-  "/:projectId",
-  validateSchema(projectIdParamSchema, "params"),
-  ProjectsController.delete,
-);
+ProjectsRouter.delete("/:projectId", ...ProjectsController.delete);
 
 export { ProjectsRouter };
