@@ -13,17 +13,12 @@ jobs:
       DATABASE_URL: file:./test.db
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: oven-sh/setup-bun@v2
 
       - run: bun install --frozen-lockfile
 
       - run: bunx prisma generate --config prisma7.config.ts
-
-      - name: Create the SQLite test database schema
-        run: |
-          rm -f test.db
-          bunx prisma db push --schema prisma/schema.prisma --skip-generate
 
       - run: bun test
