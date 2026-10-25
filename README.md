@@ -73,6 +73,18 @@ Available scripts:
 
 The API runs locally at `http://localhost:3000` unless you override `PORT`.
 
+## Tests
+
+Run the integration tests with:
+
+```bash
+bun test
+```
+
+The tests exercise the API routes with a mocked Clerk identity provider and a real Prisma database. They cover the main project and container CRUD flows, authentication and ownership checks, representative validation and duplicate-name errors, missing IDs, and project deletion cascading to its containers.
+
+The Bun test preload in `src/utils/test.setup.ts` runs Prisma migrations against `file:./test.db` and deletes that test database before the suite starts. Do not use this test setup with a database containing data you want to keep.
+
 ## Database and Prisma
 
 The Prisma schema lives in `prisma/schema.prisma`, and the generated client is output to `generated/prisma`.
@@ -108,7 +120,7 @@ Response:
 { "ok": true }
 ```
 
-This endpoint does not require authentication but is still protected by the API rate limiter.
+This endpoint does not require authentication. The API authentication and rate-limiting middleware runs after the health route is registered.
 
 ## Response Format
 
@@ -135,7 +147,7 @@ Common status codes:
 - `401` — unauthenticated / invalid Clerk session
 - `404` — missing or inaccessible resource
 - `409` — duplicate project or container name
-- `422` — validation failure
+- `400` — validation failure
 
 The default global rate limit is 300 requests per IP per 15 minutes.
 
@@ -213,4 +225,4 @@ generated/prisma/          # Generated Prisma client
 
 ## Current Status
 
-The repository includes the backend API, Prisma schema, and a Bun test setup with a health-check test. Endpoint test coverage is still incomplete, and the project does not yet include a full deployment setup, formal OpenAPI docs, or a complete CI pipeline.
+The repository includes the backend API, Prisma schema, and a small Bun integration-test suite for the main API flows. Coverage is intentionally focused on core behavior rather than every validation edge case. The project does not yet include a full deployment setup, formal OpenAPI docs, or a complete CI pipeline.
