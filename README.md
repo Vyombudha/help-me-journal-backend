@@ -83,7 +83,7 @@ bun test
 
 The tests exercise the API routes with a mocked Clerk identity provider and a real Prisma database. They cover the main project and container CRUD flows, authentication and ownership checks, representative validation and duplicate-name errors, missing IDs, and project deletion cascading to its containers.
 
-The Bun test preload in `src/utils/test.setup.ts` runs Prisma migrations against `file:./test.db` and deletes that test database before the suite starts. Do not use this test setup with a database containing data you want to keep.
+The Bun configuration in `bunfig.toml` automatically loads `src/utils/test.setup.ts` before tests. The preload sets `DATABASE_URL` to `file:./test.db`, removes the existing test database, and applies Prisma migrations before the suite starts. This keeps test data separate from the development database configured in `.env`. The test database is disposable and is recreated when you run `bun test`.
 
 ## Database and Prisma
 
