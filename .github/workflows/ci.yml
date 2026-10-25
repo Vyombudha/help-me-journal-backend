@@ -21,5 +21,9 @@ jobs:
 
       - run: bunx prisma generate --config prisma7.config.ts
 
-      # bun test runs your setup file first, which resets the test DB and migrates it
+      - name: Create the SQLite test database schema
+        run: |
+          rm -f test.db
+          bunx prisma db push --schema prisma/schema.prisma --skip-generate
+
       - run: bun test
