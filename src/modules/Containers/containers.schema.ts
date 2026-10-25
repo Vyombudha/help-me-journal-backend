@@ -19,5 +19,3 @@ export type UpdateContainerInput = z.infer<typeof updateContainerSchema>;
 export const containerIdParamSchema = z.object({
   containerId: z.uuid(),
 });
-
-export type ContainerIdParam = z.infer<typeof containerIdParamSchema>;

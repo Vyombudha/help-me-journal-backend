@@ -16,4 +16,3 @@ export const projectIdParamSchema = z.object({
 
 export type newProjectInput = z.infer<typeof newProjectSchema>;
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
-export type ProjectIdParam = z.infer<typeof projectIdParamSchema>;

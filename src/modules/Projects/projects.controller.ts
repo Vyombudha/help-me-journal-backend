@@ -3,12 +3,10 @@ import ProjectsService from "./projects.service.js";
 import {
   type newProjectInput,
   type UpdateProjectInput,
-  type ProjectIdParam,
   newProjectSchema,
   projectIdParamSchema,
   updateProjectSchema,
 } from "./projects.schema.js";
-import type { SuccessResponse } from "../../shared/types/SuccessResponse.js";
 import { createFactory } from "hono/factory";
 import type { AppEnv } from "../../shared/types/hono.js";
 import { sValidator } from "@hono/standard-validator";

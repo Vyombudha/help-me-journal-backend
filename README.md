@@ -1,228 +1,257 @@
 ﻿# Help Me Journal Backend
 
-A TypeScript REST API for the Help Me Journal app. It exposes authenticated project and container endpoints, uses Clerk for identity, and stores data in SQLite via Prisma.
+A secure, project-based journaling backend built with Hono, Prisma, SQLite, and Clerk authentication. It powers a journaling workflow where authenticated users can manage projects and create structured journal or technical note containers inside each project.
 
 ## Overview
 
-This backend powers the journaling workflow for authenticated users:
+This backend is designed for a personal productivity application where users can:
 
-- Each Clerk user can own multiple projects.
-- Each project contains multiple containers.
-- A container represents a journal entry or note with a title, type, moods, and content.
+- create and manage projects
+- organize containers within each project
+- store journal entries and technical notes
+- attach mood tags to entries
+- keep project metadata and audit-friendly timestamps
+- authenticate via Clerk
 
-The application uses:
-
-- Hono for routing and middleware
-- Prisma 7 with a generated client
-- SQLite / libSQL-compatible storage via `DATABASE_URL`
-- Clerk for authentication and user sync
-- Zod for request validation
-- CORS and rate limiting
+The API is intentionally lightweight and stateless at the application layer, with Prisma handling database access and SQLite used for local development.
 
 ## Features
 
-- User-scoped project CRUD
-- User-scoped container CRUD under a project
-- Automatic local `User` creation on first authenticated request
-- Prisma migrations and generated client management
-- Validation and centralized error handling
-- Rate limiting and CORS configuration
+- Clerk-authenticated API access
+- Project management with ownership enforcement
+- Container-based journaling and documentation
+- Support for two container types:
+  - `JOURNAL`
+  - `TECHNICAL_NOTE`
+- Mood tagging per container using enum-based values
+- Prisma schema with relational data modeling
+- Built-in health endpoint and centralized error handling
+- Rate limiting and CORS support
 
-## Requirements
+## Tech Stack
 
-- Bun
-- A Clerk project with a secret key and publishable key
-- A valid `DATABASE_URL` for SQLite or libSQL
+- Bun + TypeScript
+- Hono for HTTP routing and middleware
+- Prisma ORM
+- SQLite database
+- Clerk for authentication
+- Zod for request validation
+- tsx for local development
 
-## Environment Setup
+## Project Structure
 
-Create a `.env` file in the project root:
+```text
+help-me-journal-backend/
+├── prisma/
+│   ├── schema.prisma
+│   └── migrations/
+├── src/
+│   ├── app.ts
+│   ├── server.ts
+│   ├── modules/
+│   │   ├── Projects/
+│   │   └── Containers/
+│   ├── shared/
+│   │   ├── db/
+│   │   ├── middleware/
+│   │   ├── errors/
+│   │   └── types/
+│   └── utils/
+├── .example.env
+├── package.json
+├── bun.lock
+├── README.md
+└── tsconfig.json
+```
+
+## Authentication
+
+The API uses Clerk middleware and enforces authentication globally after the health check route.
+
+On first authenticated request:
+
+- the user ID from Clerk is read
+- a matching user record is looked up in Prisma
+- if it does not exist, the user is automatically created from Clerk data
+
+This ensures each project is tied to the authenticated user.
+
+## Environment Variables
+
+Copy `.example.env` to a real `.env` file and populate the values:
 
 ```env
 DATABASE_URL="file:./dev.db"
-CLERK_SECRET_KEY="sk_test_..."
-CLERK_PUBLISHABLE_KEY="pk_test_..."
 PORT=3000
-FRONTEND_URL="http://localhost:5173"
+CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+CLERK_SECRET_KEY=your_clerk_secret_key
+FRONTEND_URL=http://localhost:5173
 ```
 
-Notes:
+### Variable descriptions
 
-- `DATABASE_URL` should point to the Prisma database file or a supported SQLite/libSQL URL.
-- `CLERK_SECRET_KEY` is required for authenticated requests.
-- `CLERK_PUBLISHABLE_KEY` is used by the frontend Clerk integration.
-- `FRONTEND_URL` is optional but improves local CORS behavior.
-- `PORT` defaults to `3000` when not set.
+- `DATABASE_URL`: Prisma SQLite database path
+- `PORT`: backend port for the app
+- `CLERK_PUBLISHABLE_KEY`: public key used by Clerk frontend integrations
+- `CLERK_SECRET_KEY`: secret key used by the backend to validate sessions
+- `FRONTEND_URL`: allowed frontend origin for CORS
 
-## Installation
+## Getting Started
+
+### Prerequisites
+
+- Bun 1.x+
+- a Clerk project with valid keys
+
+### Install dependencies
 
 ```bash
 bun install
+```
+
+### Generate Prisma client
+
+```bash
 bunx prisma generate
-bunx prisma migrate dev
+```
+
+### Set up the database
+
+```bash
+bunx prisma db push
+```
+
+This creates the SQLite database and applies the schema from `prisma/schema.prisma`.
+
+### Run the app in development mode
+
+```bash
 bun run dev
 ```
 
-Available scripts:
-
-| Command         | Description                              |
-| --------------- | ---------------------------------------- |
-| `bun run dev`   | Runs the server in watch mode with `tsx` |
-| `bun run start` | Runs the server once with `tsx`          |
-| `bun test`      | Runs the tests using Bun's test runner   |
-
-The API runs locally at `http://localhost:3000` unless you override `PORT`.
-
-## Tests
-
-Run the integration tests with:
+### Production-like start
 
 ```bash
-bun test
+bun run start
 ```
 
-The tests exercise the API routes with a mocked Clerk identity provider and a real Prisma database. They cover the main project and container CRUD flows, authentication and ownership checks, representative validation and duplicate-name errors, missing IDs, and project deletion cascading to its containers.
+The app listens on the `PORT` environment variable and exposes the API at the root.
 
-The Bun configuration in `bunfig.toml` automatically loads `src/utils/test.setup.ts` before tests. The preload sets `DATABASE_URL` to `file:./test.db`, removes the existing test database, and applies Prisma migrations before the suite starts. This keeps test data separate from the development database configured in `.env`. The test database is disposable and is recreated when you run `bun test`.
+## API Overview
 
-## Database and Prisma
-
-The Prisma schema lives in `prisma/schema.prisma`, and the generated client is output to `generated/prisma`.
-
-Typical local workflow:
-
-```bash
-bunx prisma generate
-bunx prisma migrate dev
-```
-
-For deployment or other environments, apply migrations with:
-
-```bash
-bunx prisma migrate deploy
-```
-
-## Authentication and Authorization
-
-All routes under `/api/v1` require a valid Clerk-authenticated request.
-
-The app uses `clerkMiddleware()` and a custom `requireAuth` middleware to confirm the user is authenticated and present in the local Prisma `User` table. On first authenticated access, the server creates the local `User` record using the Clerk user ID and email.
-
-## Health Check
+### Health
 
 ```http
 GET /health
 ```
 
-Response:
+Returns status for the backend service.
 
-```json
-{ "ok": true }
+### Project routes
+
+Base path: `/api/v1/projects`
+
+| Method | Route | Description |
+| --- | --- | --- |
+| GET | `/api/v1/projects` | List all projects for the authenticated user |
+| POST | `/api/v1/projects` | Create a new project |
+| GET | `/api/v1/projects/:projectId` | Get a specific project |
+| PATCH | `/api/v1/projects/:projectId` | Update project name and description |
+| DELETE | `/api/v1/projects/:projectId` | Delete a project |
+
+Example create project request:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/projects \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <clerk_token>" \
+  -d '{
+    "name": "Daily Reflection",
+    "description": "A place to track my thoughts and wins."
+  }'
 ```
 
-This endpoint does not require authentication. The API authentication and rate-limiting middleware runs after the health route is registered.
+### Container routes
 
-## Response Format
+Base path: `/api/v1/projects/:projectId/containers`
 
-Successful responses use:
+| Method | Route | Description |
+| --- | --- | --- |
+| GET | `/api/v1/projects/:projectId/containers` | List all containers inside a project |
+| POST | `/api/v1/projects/:projectId/containers` | Create a new container in a project |
 
-```json
-{ "success": true, "data": {} }
+Container-specific route:
+
+| Method | Route | Description |
+| --- | --- | --- |
+| GET | `/api/v1/containers/:containerId` | Fetch a single container |
+| PATCH | `/api/v1/containers/:containerId` | Update title and mood tags |
+| DELETE | `/api/v1/containers/:containerId` | Delete a container |
+
+Example create container request:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/projects/<projectId>/containers \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <clerk_token>" \
+  -d '{
+    "title": "Morning Journal",
+    "type": "JOURNAL",
+    "moods": ["HAPPY", "CALM"]
+  }'
 ```
-
-Delete operations usually return:
-
-```json
-{ "success": true, "data": null }
-```
-
-Error responses use:
-
-```json
-{ "success": false, "message": "..." }
-```
-
-Common status codes:
-
-- `401` — unauthenticated / invalid Clerk session
-- `404` — missing or inaccessible resource
-- `409` — duplicate project or container name
-- `400` — validation failure
-
-The default global rate limit is 300 requests per IP per 15 minutes.
-
-## API Reference
-
-All routes are prefixed with `/api/v1`.
-
-### Projects
-
-| Method   | Path                          | Body                                                                        |
-| -------- | ----------------------------- | --------------------------------------------------------------------------- |
-| `GET`    | `/api/v1/projects`            | None                                                                        |
-| `POST`   | `/api/v1/projects`            | `{ "name": "My project", "description": "A personal journal" }`             |
-| `GET`    | `/api/v1/projects/:projectId` | None                                                                        |
-| `PATCH`  | `/api/v1/projects/:projectId` | `{ "newName": "Updated project", "newDescription": "Updated description" }` |
-| `DELETE` | `/api/v1/projects/:projectId` | None                                                                        |
-
-Validation details:
-
-- `name`: trimmed string, 1-30 characters
-- `description`: 1-200 characters
-- `newName`: trimmed string, 1-100 characters
-- `newDescription`: 1-200 characters
-
-### Containers
-
-| Method   | Path                                     | Body                                                                  |
-| -------- | ---------------------------------------- | --------------------------------------------------------------------- |
-| `GET`    | `/api/v1/projects/:projectId/containers` | None                                                                  |
-| `POST`   | `/api/v1/projects/:projectId/containers` | `{ "title": "Daily thoughts", "type": "JOURNAL", "moods": ["CALM"] }` |
-| `GET`    | `/api/v1/containers/:containerId`        | None                                                                  |
-| `PATCH`  | `/api/v1/containers/:containerId`        | `{ "newTitle": "Updated title", "newMoods": ["HAPPY", "CALM"] }`      |
-| `DELETE` | `/api/v1/containers/:containerId`        | None                                                                  |
-
-Validation details:
-
-- `title`: trimmed string, 1-100 characters
-- `type`: `JOURNAL` or `TECHNICAL_NOTE`
-- `moods`: array of allowed mood values
-- `newMoods` is optional during updates
-
-Allowed mood values:
-
-`HAPPY`, `CALM`, `SAD`, `ANGRY`, `ANXIOUS`, `EXCITED`, `TIRED`, `NEUTRAL`
 
 ## Data Model
 
-- A `User` owns many `Project` records.
-- A `Project` belongs to exactly one owner and has a unique name per owner.
-- A `Project` contains many `Container` records.
-- A `Container` has a unique title within its parent project.
-- `Project` status values are `IN_PROGRESS`, `COMPLETED`, and `ABANDONED`.
-- `Container` type values are `JOURNAL` and `TECHNICAL_NOTE`.
-- `Container` records include `content`, `moods`, and optional `templateConfig` JSON.
-- Deleting a user, project, or container cascades dependent records.
+### User
 
-## Repository Layout
+- `id`: Clerk user ID
+- `email`: unique email
+- `name`: optional name
+- `createdAt`, `updatedAt`
 
-```text
-src/
-  server.ts                 # Hono app bootstrap and route registration
-  modules/
-    Projects/               # Project routes, schemas, controller, and service
-    Containers/             # Container routes, schemas, controller, and service
-  shared/
-    db/                     # Prisma client setup
-    middleware/             # Auth, rate limiting, and error handling
-    errors/                 # Custom app errors
-    types/                  # Hono request typings
-prisma/
-  schema.prisma             # Data model and enums
-  migrations/              # Prisma migration history
-generated/prisma/          # Generated Prisma client
+### Project
+
+- `id`: UUID
+- `name`
+- `description`
+- `status`: `IN_PROGRESS`, `COMPLETED`, or `ABANDONED`
+- `ownerId`
+- `createdAt`, `updatedAt`
+
+### Container
+
+- `id`: UUID
+- `title`
+- `projectId`
+- `content`: default empty string
+- `type`: `JOURNAL` or `TECHNICAL_NOTE`
+- `moods`: JSON array of mood values
+- `templateConfig`: optional JSON payload
+- `createdAt`, `updatedAt`
+
+## Validation and Error Handling
+
+The application uses Zod schemas to validate incoming request bodies and route params. Common validation errors return structured API responses with a 4xx status.
+
+The app also centralizes general error handling through `errorHandler.middleware.ts`, and invalid routes return a 404 JSON response.
+
+## Notes
+
+- The project is optimized for local development with SQLite.
+- For production deployments, you will likely want to switch the database provider and strengthen deployment/security configuration.
+- Clerk auth must be configured correctly on both the frontend and backend for the API to function.
+
+## Useful Commands
+
+```bash
+bun install
+bun run dev
+bunx prisma generate
+bunx prisma db push
+bunx prisma studio
 ```
 
-## Current Status
+## License
 
-The repository includes the backend API, Prisma schema, and a small Bun integration-test suite for the main API flows. Coverage is intentionally focused on core behavior rather than every validation edge case. The project does not yet include a full deployment setup, formal OpenAPI docs, or a complete CI pipeline.
+This project is currently unlicensed unless you add an explicit license file or update the package metadata.
