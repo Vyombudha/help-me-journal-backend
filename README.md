@@ -1,257 +1,169 @@
-﻿# Help Me Journal Backend
+# Help Me Journal Backend
 
-A secure, project-based journaling backend built with Hono, Prisma, SQLite, and Clerk authentication. It powers a journaling workflow where authenticated users can manage projects and create structured journal or technical note containers inside each project.
-
-## Overview
-
-This backend is designed for a personal productivity application where users can:
-
-- create and manage projects
-- organize containers within each project
-- store journal entries and technical notes
-- attach mood tags to entries
-- keep project metadata and audit-friendly timestamps
-- authenticate via Clerk
-
-The API is intentionally lightweight and stateless at the application layer, with Prisma handling database access and SQLite used for local development.
+A Bun-powered API for organizing journal entries and technical notes into projects. The backend uses Hono for HTTP routing, Clerk for authentication, and Prisma with SQLite for persistence.
 
 ## Features
 
-- Clerk-authenticated API access
-- Project management with ownership enforcement
-- Container-based journaling and documentation
-- Support for two container types:
-  - `JOURNAL`
-  - `TECHNICAL_NOTE`
-- Mood tagging per container using enum-based values
-- Prisma schema with relational data modeling
-- Built-in health endpoint and centralized error handling
-- Rate limiting and CORS support
+- Clerk-authenticated API with per-user project ownership
+- Projects with status and unique names per user
+- Journal and technical-note containers within projects
+- Mood tags on containers
+- Request validation with Zod
+- CORS configuration for the frontend
+- API rate limiting: 300 requests per 15 minutes
+- Health-check endpoint
 
-## Tech Stack
+## Stack
 
-- Bun + TypeScript
-- Hono for HTTP routing and middleware
-- Prisma ORM
-- SQLite database
-- Clerk for authentication
-- Zod for request validation
-- tsx for local development
+- [Bun](https://bun.sh/) and TypeScript
+- [Hono](https://hono.dev/)
+- [Clerk](https://clerk.com/)
+- [Prisma](https://www.prisma.io/) and SQLite
+- Zod
 
-## Project Structure
+## Prerequisites
 
-```text
-help-me-journal-backend/
-├── prisma/
-│   ├── schema.prisma
-│   └── migrations/
-├── src/
-│   ├── app.ts
-│   ├── server.ts
-│   ├── modules/
-│   │   ├── Projects/
-│   │   └── Containers/
-│   ├── shared/
-│   │   ├── db/
-│   │   ├── middleware/
-│   │   ├── errors/
-│   │   └── types/
-│   └── utils/
-├── .example.env
-├── package.json
-├── bun.lock
-├── README.md
-└── tsconfig.json
+- Bun 1.x
+- A Clerk application and its API keys
+
+## Setup
+
+1. Install dependencies:
+
+   ```sh
+   bun install
+   ```
+
+2. Copy `.example.env` to `.env` and configure the values:
+
+   ```env
+   DATABASE_URL=file:./dev.db
+   PORT=3000
+   CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+   CLERK_SECRET_KEY=your_clerk_secret_key
+   FRONTEND_URL=http://localhost:5173
+   ```
+
+   Bun loads `.env` automatically. `FRONTEND_URL` is the permitted frontend origin; `http://localhost:5173` is also allowed by default. The API requires Clerk authentication for all routes other than `GET /health`.
+
+3. Generate the Prisma client and apply the migrations:
+
+   ```sh
+   bunx prisma generate --config prisma7.config.ts
+   bunx prisma migrate deploy --config prisma7.config.ts
+   ```
+
+4. Start the server:
+
+   ```sh
+   bun run dev
+   ```
+
+   The development command watches for changes. To start without watch mode:
+
+   ```sh
+   bun run start
+   ```
+
+The server uses `PORT` when set; otherwise Bun uses its default port.
+
+## API
+
+All routes except `GET /health` require a valid Clerk session. Send the session token as a bearer token:
+
+```http
+Authorization: Bearer <clerk_session_token>
 ```
 
-## Authentication
-
-The API uses Clerk middleware and enforces authentication globally after the health check route.
-
-On first authenticated request:
-
-- the user ID from Clerk is read
-- a matching user record is looked up in Prisma
-- if it does not exist, the user is automatically created from Clerk data
-
-This ensures each project is tied to the authenticated user.
-
-## Environment Variables
-
-Copy `.example.env` to a real `.env` file and populate the values:
-
-```env
-DATABASE_URL="file:./dev.db"
-PORT=3000
-CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-CLERK_SECRET_KEY=your_clerk_secret_key
-FRONTEND_URL=http://localhost:5173
-```
-
-### Variable descriptions
-
-- `DATABASE_URL`: Prisma SQLite database path
-- `PORT`: backend port for the app
-- `CLERK_PUBLISHABLE_KEY`: public key used by Clerk frontend integrations
-- `CLERK_SECRET_KEY`: secret key used by the backend to validate sessions
-- `FRONTEND_URL`: allowed frontend origin for CORS
-
-## Getting Started
-
-### Prerequisites
-
-- Bun 1.x+
-- a Clerk project with valid keys
-
-### Install dependencies
-
-```bash
-bun install
-```
-
-### Generate Prisma client
-
-```bash
-bunx prisma generate
-```
-
-### Set up the database
-
-```bash
-bunx prisma db push
-```
-
-This creates the SQLite database and applies the schema from `prisma/schema.prisma`.
-
-### Run the app in development mode
-
-```bash
-bun run dev
-```
-
-### Production-like start
-
-```bash
-bun run start
-```
-
-The app listens on the `PORT` environment variable and exposes the API at the root.
-
-## API Overview
+Successful resource responses use the shape `{ "success": true, "data": ... }`. Route parameters ending in `Id` must be UUIDs.
 
 ### Health
 
-```http
-GET /health
+| Method | Path | Description | Auth |
+| --- | --- | --- | --- |
+| GET | `/health` | Returns `{ "ok": true }` when the service is available | No |
+
+### Projects
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/v1/projects` | List the authenticated user's projects |
+| POST | `/api/v1/projects` | Create a project |
+| GET | `/api/v1/projects/:projectId` | Get a project |
+| PATCH | `/api/v1/projects/:projectId` | Update its name and description |
+| DELETE | `/api/v1/projects/:projectId` | Delete a project and its containers |
+
+Create a project with:
+
+```json
+{
+  "name": "Daily Reflection",
+  "description": "A place to collect daily thoughts."
+}
 ```
 
-Returns status for the backend service.
+`name` is trimmed and must be 1-30 characters; `description` must be 1-200 characters. Project names are unique per owner.
 
-### Project routes
+Update a project with both fields:
 
-Base path: `/api/v1/projects`
-
-| Method | Route | Description |
-| --- | --- | --- |
-| GET | `/api/v1/projects` | List all projects for the authenticated user |
-| POST | `/api/v1/projects` | Create a new project |
-| GET | `/api/v1/projects/:projectId` | Get a specific project |
-| PATCH | `/api/v1/projects/:projectId` | Update project name and description |
-| DELETE | `/api/v1/projects/:projectId` | Delete a project |
-
-Example create project request:
-
-```bash
-curl -X POST http://localhost:3000/api/v1/projects \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <clerk_token>" \
-  -d '{
-    "name": "Daily Reflection",
-    "description": "A place to track my thoughts and wins."
-  }'
+```json
+{
+  "newName": "Weekly Reflection",
+  "newDescription": "A place to collect weekly thoughts."
+}
 ```
 
-### Container routes
+### Containers
 
-Base path: `/api/v1/projects/:projectId/containers`
-
-| Method | Route | Description |
+| Method | Path | Description |
 | --- | --- | --- |
-| GET | `/api/v1/projects/:projectId/containers` | List all containers inside a project |
-| POST | `/api/v1/projects/:projectId/containers` | Create a new container in a project |
-
-Container-specific route:
-
-| Method | Route | Description |
-| --- | --- | --- |
-| GET | `/api/v1/containers/:containerId` | Fetch a single container |
-| PATCH | `/api/v1/containers/:containerId` | Update title and mood tags |
+| GET | `/api/v1/projects/:projectId/containers` | List a project's containers |
+| POST | `/api/v1/projects/:projectId/containers` | Create a container in a project |
+| GET | `/api/v1/containers/:containerId` | Get a container |
+| PATCH | `/api/v1/containers/:containerId` | Update its title and optionally moods |
 | DELETE | `/api/v1/containers/:containerId` | Delete a container |
 
-Example create container request:
+Create a container with:
 
-```bash
-curl -X POST http://localhost:3000/api/v1/projects/<projectId>/containers \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <clerk_token>" \
-  -d '{
-    "title": "Morning Journal",
-    "type": "JOURNAL",
-    "moods": ["HAPPY", "CALM"]
-  }'
+```json
+{
+  "title": "Morning Journal",
+  "type": "JOURNAL",
+  "moods": ["HAPPY", "CALM"]
+}
 ```
 
-## Data Model
+`title` is trimmed and must be 1-100 characters. `type` must be `JOURNAL` or `TECHNICAL_NOTE`. Mood values are `HAPPY`, `CALM`, `SAD`, `ANGRY`, `ANXIOUS`, `EXCITED`, `TIRED`, and `NEUTRAL`.
 
-### User
+Update a container with a required title and optional mood list:
 
-- `id`: Clerk user ID
-- `email`: unique email
-- `name`: optional name
-- `createdAt`, `updatedAt`
-
-### Project
-
-- `id`: UUID
-- `name`
-- `description`
-- `status`: `IN_PROGRESS`, `COMPLETED`, or `ABANDONED`
-- `ownerId`
-- `createdAt`, `updatedAt`
-
-### Container
-
-- `id`: UUID
-- `title`
-- `projectId`
-- `content`: default empty string
-- `type`: `JOURNAL` or `TECHNICAL_NOTE`
-- `moods`: JSON array of mood values
-- `templateConfig`: optional JSON payload
-- `createdAt`, `updatedAt`
-
-## Validation and Error Handling
-
-The application uses Zod schemas to validate incoming request bodies and route params. Common validation errors return structured API responses with a 4xx status.
-
-The app also centralizes general error handling through `errorHandler.middleware.ts`, and invalid routes return a 404 JSON response.
-
-## Notes
-
-- The project is optimized for local development with SQLite.
-- For production deployments, you will likely want to switch the database provider and strengthen deployment/security configuration.
-- Clerk auth must be configured correctly on both the frontend and backend for the API to function.
-
-## Useful Commands
-
-```bash
-bun install
-bun run dev
-bunx prisma generate
-bunx prisma db push
-bunx prisma studio
+```json
+{
+  "newTitle": "Evening Journal",
+  "newMoods": ["CALM", "TIRED"]
+}
 ```
 
-## License
+Container content defaults to an empty string. The current API does not expose a route to update container content.
 
-This project is currently unlicensed unless you add an explicit license file or update the package metadata.
+### Errors
+
+Errors return JSON with `success: false` and a `message`. Common status codes include `401` for unauthenticated requests, `404` for missing resources or routes, `409` for duplicate entries, and `500` for unexpected server errors.
+
+## Data model
+
+- **User:** Clerk user ID, unique email, optional name, timestamps.
+- **Project:** UUID, name, description, status (`IN_PROGRESS`, `COMPLETED`, or `ABANDONED`), owner, timestamps.
+- **Container:** UUID, title, content, type, optional template configuration, mood list, parent project, timestamps.
+
+Deleting a user or project cascades to its associated projects or containers, respectively.
+
+## Development
+
+Run the TypeScript checker with:
+
+```sh
+bunx tsc --noEmit --project tsconfig.json
+```
+
+Project configuration is in `tsconfig.json`; Prisma schema and migrations are under `prisma/`.
