@@ -65,11 +65,11 @@ bun run dev
 
 Available scripts:
 
-| Command | Description |
-| --- | --- |
-| `bun run dev` | Runs the server in watch mode with `tsx` |
-| `bun run start` | Runs the server once with `tsx` |
-| `bun test` | Runs the tests using Bun's test runner |
+| Command         | Description                              |
+| --------------- | ---------------------------------------- |
+| `bun run dev`   | Runs the server in watch mode with `tsx` |
+| `bun run start` | Runs the server once with `tsx`          |
+| `bun test`      | Runs the tests using Bun's test runner   |
 
 The API runs locally at `http://localhost:3000` unless you override `PORT`.
 
@@ -145,13 +145,13 @@ All routes are prefixed with `/api/v1`.
 
 ### Projects
 
-| Method | Path | Body |
-| --- | --- | --- |
-| `GET` | `/api/v1/projects` | None |
-| `POST` | `/api/v1/projects` | `{ "name": "My project", "description": "A personal journal" }` |
-| `GET` | `/api/v1/projects/:projectId` | None |
-| `PATCH` | `/api/v1/projects/:projectId` | `{ "newName": "Updated project", "newDescription": "Updated description" }` |
-| `DELETE` | `/api/v1/projects/:projectId` | None |
+| Method   | Path                          | Body                                                                        |
+| -------- | ----------------------------- | --------------------------------------------------------------------------- |
+| `GET`    | `/api/v1/projects`            | None                                                                        |
+| `POST`   | `/api/v1/projects`            | `{ "name": "My project", "description": "A personal journal" }`             |
+| `GET`    | `/api/v1/projects/:projectId` | None                                                                        |
+| `PATCH`  | `/api/v1/projects/:projectId` | `{ "newName": "Updated project", "newDescription": "Updated description" }` |
+| `DELETE` | `/api/v1/projects/:projectId` | None                                                                        |
 
 Validation details:
 
@@ -162,13 +162,13 @@ Validation details:
 
 ### Containers
 
-| Method | Path | Body |
-| --- | --- | --- |
-| `GET` | `/api/v1/projects/:projectId/containers` | None |
-| `POST` | `/api/v1/projects/:projectId/containers` | `{ "title": "Daily thoughts", "type": "JOURNAL", "moods": ["CALM"] }` |
-| `GET` | `/api/v1/containers/:containerId` | None |
-| `PATCH` | `/api/v1/containers/:containerId` | `{ "newTitle": "Updated title", "newMoods": ["HAPPY", "CALM"] }` |
-| `DELETE` | `/api/v1/containers/:containerId` | None |
+| Method   | Path                                     | Body                                                                  |
+| -------- | ---------------------------------------- | --------------------------------------------------------------------- |
+| `GET`    | `/api/v1/projects/:projectId/containers` | None                                                                  |
+| `POST`   | `/api/v1/projects/:projectId/containers` | `{ "title": "Daily thoughts", "type": "JOURNAL", "moods": ["CALM"] }` |
+| `GET`    | `/api/v1/containers/:containerId`        | None                                                                  |
+| `PATCH`  | `/api/v1/containers/:containerId`        | `{ "newTitle": "Updated title", "newMoods": ["HAPPY", "CALM"] }`      |
+| `DELETE` | `/api/v1/containers/:containerId`        | None                                                                  |
 
 Validation details:
 
