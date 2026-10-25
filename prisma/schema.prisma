@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 
@@ -68,4 +68,3 @@ model Container{
    moods Json @default("[]")
     @@unique([projectId,title])
 }
-

@@ -1,6 +1,6 @@
 # Help Me Journal Backend
 
-A Bun-powered API for organizing journal entries and technical notes into projects. The backend uses Hono for HTTP routing, Clerk for authentication, and Prisma with SQLite for persistence.
+A Bun-powered API for organizing journal entries and technical notes into projects. The backend uses Hono for HTTP routing, Clerk for authentication, and Prisma with PostgreSQL for persistence.
 
 ## Features
 
@@ -18,7 +18,7 @@ A Bun-powered API for organizing journal entries and technical notes into projec
 - [Bun](https://bun.sh/) and TypeScript
 - [Hono](https://hono.dev/)
 - [Clerk](https://clerk.com/)
-- [Prisma](https://www.prisma.io/) and SQLite
+- [Prisma](https://www.prisma.io/) and PostgreSQL
 - Zod
 
 ## Prerequisites
@@ -37,16 +37,16 @@ A Bun-powered API for organizing journal entries and technical notes into projec
 2. Copy `.example.env` to `.env` and configure the values:
 
    ```env
-   DATABASE_URL=file:./dev.db
+   DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require
    PORT=3000
    CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
    CLERK_SECRET_KEY=your_clerk_secret_key
    FRONTEND_URL=http://localhost:5173
    ```
 
-   Bun loads `.env` automatically. `FRONTEND_URL` is the permitted frontend origin; `http://localhost:5173` is also allowed by default. The API requires Clerk authentication for all routes other than `GET /health`.
+   Replace the database URL placeholders with the connection string from your PostgreSQL provider. URL-encode any special characters in the username or password. Bun loads `.env` automatically; the Prisma CLI loads it through the Prisma config. `FRONTEND_URL` is the permitted frontend origin; `http://localhost:5173` is also allowed by default. The API requires Clerk authentication for all routes other than `GET /health`.
 
-3. Generate the Prisma client and apply the migrations:
+3. Generate the Prisma client and apply the committed initial migration:
 
    ```sh
    bunx prisma generate --config prisma7.config.ts
@@ -167,3 +167,13 @@ bunx tsc --noEmit --project tsconfig.json
 ```
 
 Project configuration is in `tsconfig.json`; Prisma schema and migrations are under `prisma/`.
+
+### Database migrations
+
+The initial PostgreSQL migration is in `prisma/migrations`. For schema changes during development, create and apply a migration with:
+
+```sh
+bunx prisma migrate dev --name describe-your-change --config prisma7.config.ts
+```
+
+In production, apply committed migrations with `bunx prisma migrate deploy --config prisma7.config.ts`. Changing the database URL to PostgreSQL does not copy records from an existing SQLite or Turso database; migrate existing data separately before switching production traffic.
