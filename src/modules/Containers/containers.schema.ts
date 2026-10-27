@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ContainerType, Mood } from "../../../generated/prisma/enums.js";
 
 export const NewContainerSchema = z.object({
-  title: z.string().trim().min(1).max(100),
+  title: z.string().trim().min(1).max(500),
   type: z.enum(ContainerType),
   moods: z.array(z.enum(Mood)),
 });
@@ -10,7 +10,7 @@ export const NewContainerSchema = z.object({
 export type NewContainerInput = z.infer<typeof NewContainerSchema>;
 
 export const UpdateContainerNameSchema = z.object({
-  newTitle: z.string().trim().min(1).max(100),
+  newTitle: z.string().trim().min(1).max(500),
 });
 
 export type UpdateContainerNameInput = z.infer<
