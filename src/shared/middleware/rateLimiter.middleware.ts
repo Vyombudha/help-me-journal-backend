@@ -14,3 +14,4 @@ export const apiLimiter = createMiddleware<AppEnv>(async (c, next) => {
   });
   return (limiter as any)(c, next);
 });
+  
