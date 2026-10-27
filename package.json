@@ -4,24 +4,26 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --watch src/server.ts",
-    "start": "bun src/server.ts"
+    "dev": "prisma generate --config prisma7.config.ts && wrangler dev",
+    "deploy": "prisma generate --config prisma7.config.ts && wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply journal-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply journal-db --remote",
+    "db:diff": "prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script"
   },
   "dependencies": {
     "@clerk/hono": "^0.1.93",
     "@hono/standard-validator": "^0.4.0",
-    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/adapter-d1": "^7.10.1",
     "@prisma/client": "^7.10.0",
     "hono": "^4.13.13",
     "hono-rate-limiter": "^0.5.4",
-    "pg": "^8.16.3",
     "zod": "^4.5.4"
   },
   "devDependencies": {
-    "@types/bun": "^1.4.4",
-    "@types/pg": "^8.15.5",
-    "prisma": "^7.10.0",
+    "@cloudflare/workers-types": "^5.20261027.1",
     "dotenv": "^17.4.2",
-    "typescript": "^7.0.2"
+    "prisma": "^7.10.0",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.153.0"
   }
 }

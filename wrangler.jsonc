@@ -1,0 +1,17 @@
+{
+  "name": "help-me-journal-backend",
+  "main": "src/app.ts",
+  "compatibility_date": "2025-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "FRONTEND_URL": "https://your-frontend.example.com"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "journal-db",
+      "database_id": "18193c73-9160-4550-94ca-0762d3796b7d",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

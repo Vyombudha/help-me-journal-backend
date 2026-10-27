@@ -5,3 +5,6 @@ node_modules
 /generated/prisma
 dev.db
 test.db
+
+.wrangler/
+.dev.vars

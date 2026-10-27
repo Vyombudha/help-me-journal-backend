@@ -3,7 +3,7 @@
     "target": "ESNext",
     "module": "Preserve",
     "moduleResolution": "bundler",
-    "types": ["bun"],
+    "types": ["@cloudflare/workers-types"],
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
