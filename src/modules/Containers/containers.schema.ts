@@ -18,7 +18,7 @@ export type UpdateContainerNameInput = z.infer<
 >;
 
 export const UpdateContainerContentSchema = z.object({
-  newContent: z.string().trim().max(100),
+  newContent: z.string().trim(),
 });
 
 export type UpdateContainerContentInput = z.infer<

@@ -16,7 +16,6 @@ export class AppError extends Error {
     this.statusCode = statusCode;
     this.isOperational = isOperational;
     Object.setPrototypeOf(this, new.target.prototype);
-    Error.captureStackTrace?.(this, new.target);
   }
 }
 
@@ -42,7 +41,7 @@ export class ValidationError extends AppError {
   public readonly errors: { path: string; message: string }[];
 
   constructor(zodError: ZodError) {
-    super("Validation failed", 422); // or 400, your call
+    super("Validation failed", 422);
     this.errors = zodError.issues.map((issue) => ({
       path: issue.path.join("."),
       message: issue.message,

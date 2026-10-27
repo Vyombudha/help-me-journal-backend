@@ -1,24 +1,26 @@
 # Help Me Journal Backend
 
-A Bun and TypeScript API for managing journal projects and their entries. It uses Hono for HTTP routing, Clerk for authentication, and Prisma with PostgreSQL for data storage.
+A TypeScript API for managing journal projects and their entries. It runs on
+Cloudflare Workers, uses Hono for HTTP routing, Clerk for authentication, and
+Prisma with Cloudflare D1 (SQLite) for persistence.
 
 ## Features
 
-- Clerk-authenticated API with user-scoped projects and containers
+- Clerk-authenticated API with data scoped to the signed-in user
 - Project and journal-container management
 - Zod request validation
-- CORS support for the frontend
-- API rate limiting
-- PostgreSQL migrations managed with Prisma
-- Public health check at `/health`
+- CORS support for the frontend and local development
+- API rate limiting (300 requests per 15-minute window, keyed by client IP)
+- Cloudflare D1 database with versioned SQL migrations
+- Public health check at `GET /health`
 
 ## Requirements
 
 - Bun
-- PostgreSQL
-- A Clerk application with backend and frontend credentials
+- A Cloudflare account with a D1 database
+- A Clerk application
 
-## Local setup
+## Local development
 
 ### 1. Install dependencies
 
@@ -26,51 +28,43 @@ A Bun and TypeScript API for managing journal projects and their entries. It use
 bun install
 ```
 
-### 2. Configure environment variables
+### 2. Configure Clerk
 
-Copy `.example.env` to `.env` and set the values:
+Create a `.dev.vars` file in the repository root for local Worker secrets:
 
 ```env
-DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE?schema=public
-TEST_DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE_TEST?schema=public
-PORT=3000
-CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 CLERK_SECRET_KEY=your_clerk_secret_key
-FRONTEND_URL=http://localhost:5173
 ```
 
-- Use the PostgreSQL connection string provided by your database host. Add `sslmode=require` if your host requires TLS.
-- Keep `TEST_DATABASE_URL` pointed at a separate, disposable database. The test setup resets it and deletes its data.
-- Set Clerk keys from your Clerk dashboard. Keep the secret key private.
-- `FRONTEND_URL` controls the allowed frontend origin. `http://localhost:5173` is also allowed by default.
+Keep the Clerk secret private. The Clerk publishable key is used by the
+frontend, not this API. Wrangler reads `.dev.vars` for local development; it is
+ignored by Git.
 
-Bun loads `.env` for the server. Prisma CLI loads it through `prisma7.config.ts`. Do not commit `.env` or share credentials.
+`FRONTEND_URL` is configured in `wrangler.jsonc`. It currently allows
+`https://vyombudha.github.io`; the API also allows `http://localhost:5173` for
+local frontend development. Update the configured URL if the frontend origin
+changes.
 
-### 3. Generate Prisma Client and apply migrations
+### 3. Apply local D1 migrations
 
 ```sh
-bunx prisma generate --config prisma7.config.ts
-bunx prisma migrate deploy --config prisma7.config.ts
+bun run db:migrate:local
 ```
 
-`migrate deploy` applies committed migrations to the database named by `DATABASE_URL`. Confirm the URL points to the intended database before running it.
+The local database is managed by Wrangler under `.wrangler/`. The command
+applies SQL migrations from `migrations/` to the `journal-db` D1 binding.
 
-### 4. Start the API
+### 4. Start the local Worker
 
 ```sh
 bun run dev
 ```
 
-The development command watches for file changes. To start without watch mode:
+This generates the Prisma client and starts `wrangler dev`. Check that the
+Worker is responding:
 
 ```sh
-bun run start
-```
-
-The server uses `PORT` when set. Check that it is responding with:
-
-```sh
-curl http://localhost:3000/health
+curl http://localhost:8787/health
 ```
 
 Expected response:
@@ -79,15 +73,45 @@ Expected response:
 { "ok": true }
 ```
 
-## API
+## Deployment
 
-Every route except `GET /health` requires a valid Clerk session token:
+Authenticate Wrangler with Cloudflare if you have not already:
 
-```http
-Authorization: Bearer <clerk_session_token>
+```sh
+bunx wrangler login
 ```
 
-All resource routes are under `/api/v1`. Successful responses generally have this shape:
+Set the Clerk secret for the deployed Worker:
+
+```sh
+bunx wrangler secret put CLERK_SECRET_KEY
+```
+
+Apply migrations to the remote D1 database before deploying:
+
+```sh
+bun run db:migrate:remote
+```
+
+Deploy the Worker:
+
+```sh
+bun run deploy
+```
+
+The D1 binding name, database ID, migration directory, and frontend origin are
+configured in `wrangler.jsonc`. Verify that the binding points to the intended
+database before applying remote migrations.
+
+## API
+
+All routes except `GET /health` require a valid Clerk session token:
+
+```http
+Authorization: Bearer <clerk-session-token>
+```
+
+Resource routes are under `/api/v1`. Successful responses use this shape:
 
 ```json
 {
@@ -96,7 +120,8 @@ All resource routes are under `/api/v1`. Successful responses generally have thi
 }
 ```
 
-Project and container ID path parameters must be UUIDs. Data is scoped to the authenticated user.
+Project and container IDs must be UUIDs. A user can only access their own
+projects and containers.
 
 ### Health
 
@@ -123,7 +148,8 @@ Create a project:
 }
 ```
 
-`name` is trimmed and must be 1-30 characters. `description` must be 1-200 characters. Project names must be unique for each owner.
+On creation, `name` is trimmed and must be 1-30 characters; `description` must
+be 1-200 characters. Project names must be unique for each owner.
 
 Update a project (both fields are required):
 
@@ -134,6 +160,8 @@ Update a project (both fields are required):
 }
 ```
 
+The updated `newName` is trimmed and must be 1-100 characters.
+
 ### Containers
 
 | Method | Path | Description |
@@ -141,7 +169,8 @@ Update a project (both fields are required):
 | GET | `/api/v1/projects/:projectId/containers` | List a project's containers |
 | POST | `/api/v1/projects/:projectId/containers` | Create a container in a project |
 | GET | `/api/v1/containers/:containerId` | Get a container |
-| PATCH | `/api/v1/containers/:containerId` | Update a container's title and optional moods |
+| PATCH | `/api/v1/containers/:containerId/title` | Update a container's title |
+| PATCH | `/api/v1/containers/:containerId/content` | Update a container's content |
 | DELETE | `/api/v1/containers/:containerId` | Delete a container |
 
 Create a container:
@@ -154,22 +183,34 @@ Create a container:
 }
 ```
 
-`title` is trimmed and must be 1-100 characters. `type` must be `JOURNAL` or `TECHNICAL_NOTE`. Supported moods are `HAPPY`, `CALM`, `SAD`, `ANGRY`, `ANXIOUS`, `EXCITED`, `TIRED`, and `NEUTRAL`.
+`title` is trimmed and must be 1-100 characters. `type` must be `JOURNAL` or
+`TECHNICAL_NOTE`. `moods` is a required array; supported values are `HAPPY`,
+`CALM`, `SAD`, `ANGRY`, `ANXIOUS`, `EXCITED`, `TIRED`, and `NEUTRAL`.
 
-Update a container (title is required; moods are optional):
+Update a title:
 
 ```json
 {
-  "newTitle": "Evening Journal",
-  "newMoods": ["CALM", "TIRED"]
+  "newTitle": "Evening Journal"
 }
 ```
 
-Containers have a `content` field that defaults to an empty string, but the current API does not provide an endpoint to update it.
+Update content:
+
+```json
+{
+  "newContent": "Today I felt calm and focused."
+}
+```
+
+Both update fields are required and trimmed. `newContent` can be any string,
+including an empty string, with no length limit. The API does not currently
+expose endpoints for changing a container's type, moods, or template
+configuration.
 
 ### Errors and limits
 
-Errors return JSON containing `success: false` and a `message`. Common status codes include:
+Errors return JSON with `success: false` and a `message`. Common status codes:
 
 - `400` — invalid request body or path parameter
 - `401` — missing or invalid authentication
@@ -178,63 +219,85 @@ Errors return JSON containing `success: false` and a `message`. Common status co
 - `429` — rate limit exceeded
 - `500` — unexpected server error
 
-The API rate limit is 300 requests per 15-minute window.
-
 ## Data model
 
 - **User:** Clerk user ID, unique email, optional name, and timestamps.
-- **Project:** UUID, name, description, owner, status (`IN_PROGRESS`, `COMPLETED`, or `ABANDONED`), and timestamps.
-- **Container:** UUID, title, content, type, mood list, optional template configuration, parent project, and timestamps.
+- **Project:** UUID, name, description, owner, status (`IN_PROGRESS`,
+  `COMPLETED`, or `ABANDONED`), and timestamps.
+- **Container:** UUID, title, content, type, moods, optional template
+  configuration, parent project, and timestamps.
 
-Deleting a user cascades to their projects; deleting a project cascades to its containers.
+Deleting a user cascades to their projects; deleting a project cascades to its
+containers. Project names are unique per owner, and container titles are
+unique per project.
 
-## Development
+## Database migrations
 
-### Type-check
-
-```sh
-bunx tsc --noEmit --project tsconfig.json
-```
-
-### Tests
-
-Configure `TEST_DATABASE_URL` to point to a separate throwaway PostgreSQL database, then run:
+SQL migrations for D1 live in `migrations/`. Apply them locally or remotely
+with:
 
 ```sh
-bun test
+bun run db:migrate:local
+bun run db:migrate:remote
 ```
 
-The Bun test preload runs `prisma migrate reset` against `TEST_DATABASE_URL` before the suite. This removes existing data from that database and reapplies the migrations. Never point it at production or any database containing data you need. CI provisions its own PostgreSQL service and isolated test database.
-
-### Database migrations
-
-After changing `prisma/schema.prisma`, create and apply a migration during development:
+To print SQL for a fresh database after changing `prisma/schema.prisma`:
 
 ```sh
-bunx prisma migrate dev --name describe-your-change --config prisma7.config.ts
+bun run db:diff
 ```
 
-Commit the resulting migration. Apply committed migrations in deployed environments with:
+Review generated SQL for SQLite/D1 compatibility, save the migration under
+`migrations/` with the next sequential name, and apply it locally before
+deploying. Do not edit an already-applied migration; add a new migration
+instead.
+
+## Development checks and tests
+
+Run the TypeScript check with:
 
 ```sh
-bunx prisma migrate deploy --config prisma7.config.ts
+bun run typecheck
 ```
 
-Do not use `migrate reset` or `migrate dev` against production databases. Changing a connection string does not transfer data from another database; plan a separate data migration when needed.
+Run the API integration tests inside Cloudflare's Workers runtime with the
+Vitest plugin:
+
+```sh
+bun run test
+```
+
+The test runner uses Miniflare's local D1 implementation and applies the SQL
+migrations in `migrations/` to an isolated test database. It mocks Clerk
+authentication while exercising the real Hono routes and Prisma/D1 queries;
+no Cloudflare account, PostgreSQL service, or Clerk credentials are needed.
+The test database is separate from Wrangler's local development database.
+
+For watch mode during development:
+
+```sh
+bun run test:watch
+```
+
+Test type-checking is available separately:
+
+```sh
+bun run typecheck:test
+```
 
 ## Project layout
 
 ```text
 src/
   app.ts                 Hono app, middleware, and route mounting
-  server.ts              Bun server entry point
   modules/
     Projects/            Project routes, validation, controllers, and services
     Containers/          Container routes, validation, controllers, and services
   shared/
-    db/                  Prisma client and PostgreSQL adapter
+    db/                  Prisma client and D1 adapter
     middleware/          Authentication, rate limiting, and error handling
+migrations/              Versioned D1 SQL migrations
 prisma/
-  schema.prisma          Database schema
-  migrations/            Versioned PostgreSQL migrations
+  schema.prisma          Prisma data model
+wrangler.jsonc           Worker entry point, D1 binding, and frontend URL
 ```

@@ -9,25 +9,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: app_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres -d app_test"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app_test?schema=public
-      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app_test_test?schema=public
-
     steps:
       - uses: actions/checkout@v4
 
@@ -35,11 +16,8 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
-      - name: Create isolated test database
-        run: psql --host localhost --username postgres --dbname postgres --command "CREATE DATABASE app_test_test;"
-        env:
-          PGPASSWORD: postgres
+      - run: bun run test
 
-      - run: bunx prisma generate --config prisma7.config.ts
+      - run: bun run typecheck
 
-      - run: bun test
+      - run: bun run typecheck:test

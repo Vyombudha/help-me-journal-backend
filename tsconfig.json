@@ -10,5 +10,6 @@
     "verbatimModuleSyntax": true,
     "noUncheckedIndexedAccess": true
   },
-  "include": ["src", "generated"]
+  "include": ["src", "generated"],
+  "exclude": ["src/**/*.test.ts", "test"]
 }
