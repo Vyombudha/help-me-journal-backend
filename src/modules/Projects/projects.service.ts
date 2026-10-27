@@ -1,6 +1,5 @@
-import { Prisma, type Project } from "../../../generated/prisma/client.js";
+import { type Project } from "../../../generated/prisma/client.js";
 import { prisma } from "../../shared/db/prisma.js";
-import { NotFoundError } from "../../shared/errors/AppError.js";
 
 const createProject = async (
   ownerId: string,

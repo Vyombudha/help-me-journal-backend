@@ -1,11 +1,10 @@
-import type { Project } from "../../../generated/prisma/client.js";
 import ProjectsService from "./projects.service.js";
 import {
-  type newProjectInput,
+  NewProjectSchema,
+  ProjectIdParamSchema,
+  UpdateProjectSchema,
+  type NewProjectInput,
   type UpdateProjectInput,
-  newProjectSchema,
-  projectIdParamSchema,
-  updateProjectSchema,
 } from "./projects.schema.js";
 import { createFactory } from "hono/factory";
 import type { AppEnv } from "../../shared/types/hono.js";
@@ -14,10 +13,10 @@ import { sValidator } from "@hono/standard-validator";
 const factory = createFactory<AppEnv>();
 
 const newProject = factory.createHandlers(
-  sValidator("json", newProjectSchema),
+  sValidator("json", NewProjectSchema),
   async (c) => {
     const userId = c.get("userId");
-    const body: newProjectInput = c.req.valid("json");
+    const body: NewProjectInput = c.req.valid("json");
     const newProject = await ProjectsService.new(
       userId,
       body.name,
@@ -46,7 +45,7 @@ const getAllProjects = factory.createHandlers(async (c) => {
 });
 
 const getProject = factory.createHandlers(
-  sValidator("param", projectIdParamSchema), // add this
+  sValidator("param", ProjectIdParamSchema), // add this
   async (c) => {
     const userId = c.get("userId");
     const { projectId } = c.req.valid("param");
@@ -63,8 +62,8 @@ const getProject = factory.createHandlers(
 );
 
 const updateProjectName = factory.createHandlers(
-  sValidator("param", projectIdParamSchema),
-  sValidator("json", updateProjectSchema),
+  sValidator("param", ProjectIdParamSchema),
+  sValidator("json", UpdateProjectSchema),
   async (c) => {
     const userId = c.get("userId");
     const { projectId } = c.req.valid("param");
@@ -87,7 +86,7 @@ const updateProjectName = factory.createHandlers(
   },
 );
 const deleteProject = factory.createHandlers(
-  sValidator("param", projectIdParamSchema),
+  sValidator("param", ProjectIdParamSchema),
   async (c) => {
     const userId = c.get("userId");
     const { projectId } = c.req.valid("param");

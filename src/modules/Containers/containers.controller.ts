@@ -1,26 +1,28 @@
 import type { Container } from "../../../generated/prisma/client.js";
 import ContainerService from "./containers.service.js";
 import {
-  type newContainerInput,
-  type UpdateContainerInput,
-  containerIdParamSchema,
-  newContainerSchema,
-  updateContainerSchema,
+  ContainerIdParamSchema,
+  NewContainerSchema,
+  UpdateContainerContentSchema,
+  UpdateContainerNameSchema,
+  type NewContainerInput,
+  type UpdateContainerContentInput,
+  type UpdateContainerNameInput,
 } from "./containers.schema.js";
 import { createFactory } from "hono/factory";
 import type { AppEnv } from "../../shared/types/hono.js";
 import { sValidator } from "@hono/standard-validator";
-import { projectIdParamSchema } from "../Projects/projects.schema.js";
+import { ProjectIdParamSchema } from "../Projects/projects.schema.js";
 
 const factory = createFactory<AppEnv>();
 
 const newContainer = factory.createHandlers(
-  sValidator("param", projectIdParamSchema),
-  sValidator("json", newContainerSchema),
+  sValidator("param", ProjectIdParamSchema),
+  sValidator("json", NewContainerSchema),
   async (c) => {
     const userId = c.get("userId");
     const { projectId } = c.req.valid("param");
-    const body: newContainerInput = c.req.valid("json");
+    const body: NewContainerInput = c.req.valid("json");
 
     const newContainer = await ContainerService.new(
       userId,
@@ -41,7 +43,7 @@ const newContainer = factory.createHandlers(
 );
 
 const getAllContainers = factory.createHandlers(
-  sValidator("param", projectIdParamSchema),
+  sValidator("param", ProjectIdParamSchema),
   async (c) => {
     const userId = c.get("userId");
     const { projectId } = c.req.valid("param");
@@ -59,7 +61,7 @@ const getAllContainers = factory.createHandlers(
 );
 
 const getContainer = factory.createHandlers(
-  sValidator("param", containerIdParamSchema),
+  sValidator("param", ContainerIdParamSchema),
   async (c) => {
     const userId = c.get("userId");
     const { containerId } = c.req.valid("param");
@@ -77,18 +79,41 @@ const getContainer = factory.createHandlers(
 );
 
 const updateContainerTitle = factory.createHandlers(
-  sValidator("param", containerIdParamSchema),
-  sValidator("json", updateContainerSchema),
+  sValidator("param", ContainerIdParamSchema),
+  sValidator("json", UpdateContainerNameSchema),
   async (c) => {
     const userId = c.get("userId");
     const { containerId } = c.req.valid("param");
-    const body: UpdateContainerInput = c.req.valid("json");
+    const body: UpdateContainerNameInput = c.req.valid("json");
 
-    const updatedContainer = await ContainerService.updateName(
+    const updatedContainer = await ContainerService.updateTitle(
       userId,
       containerId,
       body.newTitle,
-      body.newMoods,
+    );
+
+    return c.json(
+      {
+        success: true,
+        data: updatedContainer,
+      },
+      200,
+    );
+  },
+);
+
+const updateContainerContent = factory.createHandlers(
+  sValidator("param", ContainerIdParamSchema),
+  sValidator("json", UpdateContainerContentSchema),
+  async (c) => {
+    const userId = c.get("userId");
+    const { containerId } = c.req.valid("param");
+    const body: UpdateContainerContentInput = c.req.valid("json");
+
+    const updatedContainer = await ContainerService.updateContent(
+      userId,
+      containerId,
+      body.newContent,
     );
 
     return c.json(
@@ -102,7 +127,7 @@ const updateContainerTitle = factory.createHandlers(
 );
 
 const deleteContainer = factory.createHandlers(
-  sValidator("param", containerIdParamSchema),
+  sValidator("param", ContainerIdParamSchema),
   async (c) => {
     const userId = c.get("userId");
     const { containerId } = c.req.valid("param");
@@ -124,5 +149,6 @@ export const ContainerController = {
   get: getContainer,
   getAll: getAllContainers,
   updateTitle: updateContainerTitle,
+  updateContent: updateContainerContent,
   delete: deleteContainer,
 };

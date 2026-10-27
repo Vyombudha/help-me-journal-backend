@@ -1,21 +1,30 @@
 import { z } from "zod";
 import { ContainerType, Mood } from "../../../generated/prisma/enums.js";
 
-export const newContainerSchema = z.object({
+export const NewContainerSchema = z.object({
   title: z.string().trim().min(1).max(100),
   type: z.enum(ContainerType),
   moods: z.array(z.enum(Mood)),
 });
 
-export type newContainerInput = z.infer<typeof newContainerSchema>;
+export type NewContainerInput = z.infer<typeof NewContainerSchema>;
 
-export const updateContainerSchema = z.object({
+export const UpdateContainerNameSchema = z.object({
   newTitle: z.string().trim().min(1).max(100),
-  newMoods: z.array(z.enum(Mood)).optional(),
 });
 
-export type UpdateContainerInput = z.infer<typeof updateContainerSchema>;
+export type UpdateContainerNameInput = z.infer<
+  typeof UpdateContainerNameSchema
+>;
 
-export const containerIdParamSchema = z.object({
+export const UpdateContainerContentSchema = z.object({
+  newContent: z.string().trim().max(100),
+});
+
+export type UpdateContainerContentInput = z.infer<
+  typeof UpdateContainerContentSchema
+>;
+
+export const ContainerIdParamSchema = z.object({
   containerId: z.uuid(),
 });

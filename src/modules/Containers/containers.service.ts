@@ -61,38 +61,40 @@ const getContainer = async (
   });
 };
 
-const updateContainerData = async (
+const updateContainerTitle = async (
   ownerId: string,
   containerId: string,
   newTitle: string,
-  newMoods: Mood[] | undefined,
 ): Promise<Container> => {
-  if (newMoods) {
-    return await prisma.container.update({
-      data: {
-        title: newTitle,
-        moods: newMoods,
+  return await prisma.container.update({
+    data: {
+      title: newTitle,
+    },
+    where: {
+      id: containerId,
+      project: {
+        ownerId,
       },
-      where: {
-        id: containerId,
-        project: {
-          ownerId,
-        },
+    },
+  });
+};
+
+const updateContainerContent = async (
+  ownerId: string,
+  containerId: string,
+  newContent: string,
+): Promise<Container> => {
+  return await prisma.container.update({
+    data: {
+      content: newContent,
+    },
+    where: {
+      id: containerId,
+      project: {
+        ownerId,
       },
-    });
-  } else {
-    return await prisma.container.update({
-      data: {
-        title: newTitle,
-      },
-      where: {
-        id: containerId,
-        project: {
-          ownerId,
-        },
-      },
-    });
-  }
+    },
+  });
 };
 
 const deleteContainer = async (
@@ -113,7 +115,8 @@ const ContainerService = {
   get: getContainer,
   new: createContainer,
   getAll: getAllContainers,
-  updateName: updateContainerData,
+  updateTitle: updateContainerTitle,
+  updateContent: updateContainerContent,
   delete: deleteContainer,
 };
 

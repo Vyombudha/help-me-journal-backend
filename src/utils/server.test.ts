@@ -1,5 +1,5 @@
 import { beforeEach, expect, mock, test } from "bun:test";
-import type { newContainerInput } from "../modules/Containers/containers.schema";
+import type { NewContainerInput } from "../modules/Containers/containers.schema";
 
 let currentAuth: { userId: string | null } = { userId: "user_123" };
 
@@ -48,7 +48,7 @@ const createProject = async (name = "Trip") => {
   return (await res.json()).data as { id: string };
 };
 
-const containerBody: newContainerInput = {
+const containerBody: NewContainerInput = {
   title: "Day 1",
   type: "JOURNAL",
   moods: ["HAPPY", "EXCITED"],
@@ -185,10 +185,7 @@ test("user can list containers in a project", async () => {
   const project = await createProject();
   await createContainer(project.id);
 
-  const res = await call(
-    "GET",
-    `/api/v1/projects/${project.id}/containers`,
-  );
+  const res = await call("GET", `/api/v1/projects/${project.id}/containers`);
   expect(res.status).toBe(200);
   const response = await res.json();
   expect(response.success).toBe(true);
@@ -196,18 +193,34 @@ test("user can list containers in a project", async () => {
   expect(response.data[0].title).toBe("Day 1");
 });
 
-test("user can update and delete a container", async () => {
+test("user can update and delete a container title and name", async () => {
   const project = await createProject();
   const container = await createContainer(project.id);
 
-  const update = await call("PATCH", `/api/v1/containers/${container.id}`, {
-    newTitle: "Updated entry",
-    newMoods: ["CALM"],
-  });
-  expect(update.status).toBe(200);
-  expect((await update.json()).data).toMatchObject({
+  const updateTitle = await call(
+    "PATCH",
+    `/api/v1/containers/${container.id}/title`,
+    {
+      newTitle: "Updated entry",
+      newMoods: ["CALM"],
+    },
+  );
+  
+  expect(updateTitle.status).toBe(200);
+  expect((await updateTitle.json()).data).toMatchObject({
     title: "Updated entry",
-    moods: ["CALM"],
+  });
+
+  const updateContent = await call(
+    "PATCH",
+    `/api/v1/containers/${container.id}/content`,
+    {
+      newContent: "Updated Content",
+    },
+  );
+  expect(updateContent.status).toBe(200);
+  expect((await updateContent.json()).data).toMatchObject({
+    content: "Updated Content",
   });
 
   const remove = await call("DELETE", `/api/v1/containers/${container.id}`);
@@ -218,11 +231,10 @@ test("user can update and delete a container", async () => {
 
 test("invalid container input returns 400", async () => {
   const project = await createProject();
-  const res = await call(
-    "POST",
-    `/api/v1/projects/${project.id}/containers`,
-    { ...containerBody, moods: ["NOT_A_MOOD"] },
-  );
+  const res = await call("POST", `/api/v1/projects/${project.id}/containers`, {
+    ...containerBody,
+    moods: ["NOT_A_MOOD"],
+  });
   expect(res.status).toBe(400);
   expect(await prisma.container.count()).toBe(0);
 });

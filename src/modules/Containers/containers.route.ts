@@ -8,7 +8,16 @@ const ProjectContainersRouter = new Hono<AppEnv>();
 // Mounted at /containers/
 ContainersRouter.get("/:containerId", ...ContainerController.get);
 
-ContainersRouter.patch("/:containerId", ...ContainerController.updateTitle);
+ContainersRouter.patch(
+  "/:containerId/title",
+  ...ContainerController.updateTitle,
+);
+
+ContainersRouter.patch(
+  "/:containerId/content",
+  ...ContainerController.updateContent,
+);
+
 ContainersRouter.delete("/:containerId", ...ContainerController.delete);
 
 // Mounted at /projects/:projectId/containers
