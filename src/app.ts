@@ -1,9 +1,5 @@
-import { ProjectsRouter } from "./modules/Projects/index.js";
+import { WorkspacesRouter } from "./modules/Workspaces/index.js";
 import { apiLimiter } from "./shared/middleware/index.js";
-import {
-  ContainersRouter,
-  ProjectContainersRouter,
-} from "./modules/Containers/containers.route.js";
 import { clerkMiddleware } from "@clerk/hono";
 import { errorHandler } from "./shared/middleware/errorHandler.middleware.js";
 import { requireAuth } from "./shared/middleware/auth.middleware.js";
@@ -12,6 +8,10 @@ import { Hono } from "hono";
 import type { MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 import type { AppEnv } from "./shared/types/hono.js";
+import {
+  PagesRouter,
+  WorkspacePagesRouter,
+} from "./modules/Pages/pages.route.js";
 
 const FRONTEND_URL = [process.env.FRONTEND_URL, "http://localhost:5173"].filter(
   (url): url is string => Boolean(url),
@@ -34,9 +34,9 @@ export const createApp = (
   app.use(clerkAuth);
   app.use(requireAuthentication);
   app.use(apiLimiter);
-  app.route("/api/v1/projects", ProjectsRouter);
-  app.route("/api/v1/projects/:projectId/containers", ProjectContainersRouter);
-  app.route("/api/v1/containers", ContainersRouter);
+  app.route("/api/v1/projects", WorkspacesRouter);
+  app.route("/api/v1/projects/:projectId/containers", WorkspacePagesRouter);
+  app.route("/api/v1/containers", PagesRouter);
   app.onError(errorHandler);
   app.notFound((c) =>
     c.json(
