@@ -62,11 +62,10 @@ const deleteWorkspace = async (
   });
 };
 
-export default const WorkspacesService = {
+export const WorkspacesService = {
   get: getWorkspace,
   new: createWorkspace,
   getAll: getAllWorkspaces,
   updateName: updateWorkspaceName,
   delete: deleteWorkspace,
 };
-

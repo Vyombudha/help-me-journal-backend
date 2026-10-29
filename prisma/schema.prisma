@@ -53,13 +53,13 @@ model Workspace{
 model Page{
     id String @id @default(uuid())
     title String  
-    projectId String
+    workspaceId String
     content String @default("")
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
     status PageStatus @default(IN_PROGRESS)
-    workspace Workspace @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
     templateConfig Json?
    moods Json @default("[]")
-    @@unique([projectId,title])
+    @@unique([workspaceId,title])
 }

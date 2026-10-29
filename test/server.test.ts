@@ -1,6 +1,6 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { createMiddleware } from "hono/factory";
-import type { NewContainerInput } from "../src/modules/Containers/containers.schema.js";
+import type { NewPageInput } from "../src/modules/Pages/pages.schema.js";
 import { createApp } from "../src/app.js";
 import { createRequireAuth } from "../src/shared/middleware/auth.middleware.js";
 import { prisma } from "../src/shared/db/prisma.js";
@@ -29,8 +29,8 @@ const app = createApp(
 beforeEach(async () => {
   authState.userId = "user_123";
   getUser.mockClear();
-  await prisma.container.deleteMany();
-  await prisma.project.deleteMany();
+  await prisma.page.deleteMany();
+  await prisma.workspace.deleteMany();
   await prisma.user.deleteMany();
 });
 
@@ -51,8 +51,8 @@ type ApiResponse<T> = { success: boolean; data: T };
 const readApiResponse = <T>(response: Response) =>
   response.json() as Promise<ApiResponse<T>>;
 
-const createProject = async (name = "Trip") => {
-  const res = await call("POST", "/api/v1/projects", {
+const createWorkspace = async (name = "Trip") => {
+  const res = await call("POST", "/api/v1/workspaces", {
     name,
     description: "Notes",
   });
@@ -60,17 +60,16 @@ const createProject = async (name = "Trip") => {
   return (await readApiResponse<{ id: string }>(res)).data;
 };
 
-const containerBody: NewContainerInput = {
+const pageBody: NewPageInput = {
   title: "Day 1",
-  type: "JOURNAL",
   moods: ["HAPPY", "EXCITED"],
 };
 
-const createContainer = async (projectId: string) => {
+const createPage = async (workspaceId: string) => {
   const res = await call(
     "POST",
-    `/api/v1/projects/${projectId}/containers`,
-    containerBody,
+    `/api/v1/workspaces/${workspaceId}/pages`,
+    pageBody,
   );
   expect(res.status).toBe(200);
   return (await readApiResponse<{ id: string }>(res)).data;
@@ -85,7 +84,7 @@ test("health check is public", async () => {
 
 test("API requests require authentication", async () => {
   authState.userId = null;
-  const res = await call("GET", "/api/v1/projects");
+  const res = await call("GET", "/api/v1/workspaces");
   expect(res.status).toBe(401);
   expect(await res.json()).toMatchObject({
     success: false,
@@ -94,7 +93,7 @@ test("API requests require authentication", async () => {
 });
 
 test("first authenticated request creates a local user", async () => {
-  const res = await call("GET", "/api/v1/projects");
+  const res = await call("GET", "/api/v1/workspaces");
   expect(res.status).toBe(200);
 
   const user = await prisma.user.findUnique({ where: { id: "user_123" } });
@@ -102,9 +101,9 @@ test("first authenticated request creates a local user", async () => {
   expect(getUser).toHaveBeenCalledTimes(1);
 });
 
-test("user can create and list their projects", async () => {
-  const project = await createProject();
-  const res = await call("GET", "/api/v1/projects");
+test("user can create and list their workspaces", async () => {
+  const workspace = await createWorkspace();
+  const res = await call("GET", "/api/v1/workspaces");
   const response = await readApiResponse<
     { id: string; name: string; description: string; ownerId: string }[]
   >(res);
@@ -113,21 +112,21 @@ test("user can create and list their projects", async () => {
   expect(response.success).toBe(true);
   expect(response.data).toHaveLength(1);
   expect(response.data[0]).toMatchObject({
-    id: project.id,
+    id: workspace.id,
     name: "Trip",
     description: "Notes",
     ownerId: "user_123",
   });
 });
 
-test("user can read, update, and delete a project", async () => {
-  const project = await createProject();
+test("user can read, update, and delete a workspace", async () => {
+  const workspace = await createWorkspace();
 
-  const read = await call("GET", `/api/v1/projects/${project.id}`);
+  const read = await call("GET", `/api/v1/workspaces/${workspace.id}`);
   expect(read.status).toBe(200);
   expect((await readApiResponse<{ name: string }>(read)).data.name).toBe("Trip");
 
-  const update = await call("PATCH", `/api/v1/projects/${project.id}`, {
+  const update = await call("PATCH", `/api/v1/workspaces/${workspace.id}`, {
     newName: "Updated trip",
     newDescription: "Updated notes",
   });
@@ -137,69 +136,68 @@ test("user can read, update, and delete a project", async () => {
     description: "Updated notes",
   });
 
-  const remove = await call("DELETE", `/api/v1/projects/${project.id}`);
+  const remove = await call("DELETE", `/api/v1/workspaces/${workspace.id}`);
   expect(remove.status).toBe(200);
   expect(await remove.json()).toEqual({ success: true, data: null });
-  expect(await prisma.project.count()).toBe(0);
+  expect(await prisma.workspace.count()).toBe(0);
 });
 
-test("invalid project input returns 400", async () => {
-  const res = await call("POST", "/api/v1/projects", {
+test("invalid workspace input returns 400", async () => {
+  const res = await call("POST", "/api/v1/workspaces", {
     name: "",
     description: "Notes",
   });
   expect(res.status).toBe(400);
-  expect(await prisma.project.count()).toBe(0);
+  expect(await prisma.workspace.count()).toBe(0);
 });
 
-test("duplicate project name returns 409", async () => {
-  await createProject();
-  const res = await call("POST", "/api/v1/projects", {
+test("duplicate workspace name returns 409", async () => {
+  await createWorkspace();
+  const res = await call("POST", "/api/v1/workspaces", {
     name: "Trip",
     description: "Notes",
   });
   expect(res.status).toBe(409);
 });
 
-test("a user cannot access another user's project", async () => {
-  const project = await createProject();
+test("a user cannot access another user's workspace", async () => {
+  const workspace = await createWorkspace();
   authState.userId = "user_456";
 
-  const res = await call("GET", `/api/v1/projects/${project.id}`);
+  const res = await call("GET", `/api/v1/workspaces/${workspace.id}`);
   expect(res.status).toBe(404);
 });
 
-test("missing or malformed project IDs return errors", async () => {
+test("missing or malformed workspace IDs return errors", async () => {
   const missing = await call(
     "GET",
-    "/api/v1/projects/00000000-0000-4000-8000-000000000000",
+    "/api/v1/workspaces/00000000-0000-4000-8000-000000000000",
   );
   expect(missing.status).toBe(404);
 
-  const malformed = await call("GET", "/api/v1/projects/not-a-uuid");
+  const malformed = await call("GET", "/api/v1/workspaces/not-a-uuid");
   expect(malformed.status).toBe(400);
 });
 
-test("user can create and read a container", async () => {
-  const project = await createProject();
-  const container = await createContainer(project.id);
-  const res = await call("GET", `/api/v1/containers/${container.id}`);
+test("user can create and read a page", async () => {
+  const workspace = await createWorkspace();
+  const page = await createPage(workspace.id);
+  const res = await call("GET", `/api/v1/pages/${page.id}`);
 
   expect(res.status).toBe(200);
   expect((await readApiResponse<Record<string, unknown>>(res)).data).toMatchObject({
-    id: container.id,
-    projectId: project.id,
+    id: page.id,
+    workspaceId: workspace.id,
     title: "Day 1",
-    type: "JOURNAL",
     moods: ["HAPPY", "EXCITED"],
   });
 });
 
-test("user can list containers in a project", async () => {
-  const project = await createProject();
-  await createContainer(project.id);
+test("user can list pages in a workspace", async () => {
+  const workspace = await createWorkspace();
+  await createPage(workspace.id);
 
-  const res = await call("GET", `/api/v1/projects/${project.id}/containers`);
+  const res = await call("GET", `/api/v1/workspaces/${workspace.id}/pages`);
   expect(res.status).toBe(200);
   const response = await readApiResponse<{ title: string }[]>(res);
   expect(response.success).toBe(true);
@@ -207,13 +205,13 @@ test("user can list containers in a project", async () => {
   expect(response.data[0]?.title).toBe("Day 1");
 });
 
-test("user can update a container title and content, then delete it", async () => {
-  const project = await createProject();
-  const container = await createContainer(project.id);
+test("user can update a page title and content, then delete it", async () => {
+  const workspace = await createWorkspace();
+  const page = await createPage(workspace.id);
 
   const updateTitle = await call(
     "PATCH",
-    `/api/v1/containers/${container.id}/title`,
+    `/api/v1/pages/${page.id}/title`,
     {
       newTitle: "Updated entry",
     },
@@ -228,7 +226,7 @@ test("user can update a container title and content, then delete it", async () =
 
   const updateContent = await call(
     "PATCH",
-    `/api/v1/containers/${container.id}/content`,
+    `/api/v1/pages/${page.id}/content`,
     {
       newContent: "Updated Content",
     },
@@ -242,7 +240,7 @@ test("user can update a container title and content, then delete it", async () =
 
   const clearContent = await call(
     "PATCH",
-    `/api/v1/containers/${container.id}/content`,
+    `/api/v1/pages/${page.id}/content`,
     { newContent: "   " },
   );
   expect(clearContent.status).toBe(200);
@@ -253,7 +251,7 @@ test("user can update a container title and content, then delete it", async () =
   const longContent = "x".repeat(1_000);
   const updateLongContent = await call(
     "PATCH",
-    `/api/v1/containers/${container.id}/content`,
+    `/api/v1/pages/${page.id}/content`,
     { newContent: longContent },
   );
   expect(updateLongContent.status).toBe(200);
@@ -263,70 +261,70 @@ test("user can update a container title and content, then delete it", async () =
     content: longContent,
   });
 
-  const remove = await call("DELETE", `/api/v1/containers/${container.id}`);
+  const remove = await call("DELETE", `/api/v1/pages/${page.id}`);
   expect(remove.status).toBe(200);
   expect(await remove.json()).toEqual({ success: true, data: null });
-  expect(await prisma.container.count()).toBe(0);
+  expect(await prisma.page.count()).toBe(0);
 });
 
-test("invalid container input returns 400", async () => {
-  const project = await createProject();
-  const res = await call("POST", `/api/v1/projects/${project.id}/containers`, {
-    ...containerBody,
+test("invalid page input returns 400", async () => {
+  const workspace = await createWorkspace();
+  const res = await call("POST", `/api/v1/workspaces/${workspace.id}/pages`, {
+    ...pageBody,
     moods: ["NOT_A_MOOD"],
   });
 
   expect(res.status).toBe(400);
-  expect(await prisma.container.count()).toBe(0);
+  expect(await prisma.page.count()).toBe(0);
 });
 
-test("container content must be a string", async () => {
-  const project = await createProject();
-  const container = await createContainer(project.id);
+test("page content must be a string", async () => {
+  const workspace = await createWorkspace();
+  const page = await createPage(workspace.id);
 
   const res = await call(
     "PATCH",
-    `/api/v1/containers/${container.id}/content`,
+    `/api/v1/pages/${page.id}/content`,
     { newContent: 42 },
   );
 
   expect(res.status).toBe(400);
 });
 
-test("duplicate container title in a project returns 409", async () => {
-  const project = await createProject();
-  await createContainer(project.id);
+test("duplicate page title in a workspace returns 409", async () => {
+  const workspace = await createWorkspace();
+  await createPage(workspace.id);
   const res = await call(
     "POST",
-    `/api/v1/projects/${project.id}/containers`,
-    containerBody,
+    `/api/v1/workspaces/${workspace.id}/pages`,
+    pageBody,
   );
   expect(res.status).toBe(409);
 });
 
-test("a user cannot access another user's container", async () => {
-  const project = await createProject();
-  const container = await createContainer(project.id);
+test("a user cannot access another user's page", async () => {
+  const workspace = await createWorkspace();
+  const page = await createPage(workspace.id);
   authState.userId = "user_456";
 
-  const res = await call("GET", `/api/v1/containers/${container.id}`);
+  const res = await call("GET", `/api/v1/pages/${page.id}`);
   expect(res.status).toBe(404);
 });
 
-test("missing project or container returns 404", async () => {
+test("missing workspace or page returns 404", async () => {
   const missingId = "00000000-0000-4000-8000-000000000000";
-  const project = await call("GET", `/api/v1/projects/${missingId}`);
-  const container = await call("GET", `/api/v1/containers/${missingId}`);
+  const workspace = await call("GET", `/api/v1/workspaces/${missingId}`);
+  const page = await call("GET", `/api/v1/pages/${missingId}`);
 
-  expect(project.status).toBe(404);
-  expect(container.status).toBe(404);
+  expect(workspace.status).toBe(404);
+  expect(page.status).toBe(404);
 });
 
-test("deleting a project also deletes its containers", async () => {
-  const project = await createProject();
-  await createContainer(project.id);
+test("deleting a workspace also deletes its pages", async () => {
+  const workspace = await createWorkspace();
+  await createPage(workspace.id);
 
-  const res = await call("DELETE", `/api/v1/projects/${project.id}`);
+  const res = await call("DELETE", `/api/v1/workspaces/${workspace.id}`);
   expect(res.status).toBe(200);
-  expect(await prisma.container.count()).toBe(0);
+  expect(await prisma.page.count()).toBe(0);
 });

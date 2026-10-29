@@ -34,9 +34,9 @@ export const createApp = (
   app.use(clerkAuth);
   app.use(requireAuthentication);
   app.use(apiLimiter);
-  app.route("/api/v1/projects", WorkspacesRouter);
-  app.route("/api/v1/projects/:projectId/containers", WorkspacePagesRouter);
-  app.route("/api/v1/containers", PagesRouter);
+  app.route("/api/v1/workspaces", WorkspacesRouter);
+  app.route("/api/v1/workspaces/:workspaceId/pages", WorkspacePagesRouter);
+  app.route("/api/v1/pages", PagesRouter);
   app.onError(errorHandler);
   app.notFound((c) =>
     c.json(

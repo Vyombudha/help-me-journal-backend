@@ -12,21 +12,21 @@ import {
 import { createFactory } from "hono/factory";
 import type { AppEnv } from "../../shared/types/hono.js";
 import { sValidator } from "@hono/standard-validator";
-import { ProjectIdParamSchema } from "../Workspaces/workspaces.schema.js";
+import { WorkspaceIdParamSchema } from "../Workspaces/workspaces.schema.js";
 
 const factory = createFactory<AppEnv>();
 
 const newPage = factory.createHandlers(
-  sValidator("param", ProjectIdParamSchema),
+  sValidator("param", WorkspaceIdParamSchema),
   sValidator("json", NewPageSchema),
   async (c) => {
     const userId = c.get("userId");
-    const { projectId } = c.req.valid("param");
+    const { workspaceId } = c.req.valid("param");
     const body: NewPageInput = c.req.valid("json");
 
     const newPage: Page = await PagesService.new(
       userId,
-      projectId,
+      workspaceId,
       body.title,
       body.moods,
     );
@@ -42,12 +42,12 @@ const newPage = factory.createHandlers(
 );
 
 const getAllPages = factory.createHandlers(
-  sValidator("param", ProjectIdParamSchema),
+  sValidator("param", WorkspaceIdParamSchema),
   async (c) => {
     const userId = c.get("userId");
-    const { projectId } = c.req.valid("param");
+    const { workspaceId } = c.req.valid("param");
 
-    const pages = await PagesService.getAll(userId, projectId);
+    const pages = await PagesService.getAll(userId, workspaceId);
 
     return c.json(
       {

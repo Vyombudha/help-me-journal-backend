@@ -1,4 +1,4 @@
-import ProjectsService from "./workspaces.service.js";
+import { WorkspacesService } from "./workspaces.service.js";
 
 import { createFactory } from "hono/factory";
 import type { AppEnv } from "../../shared/types/hono.js";
@@ -19,7 +19,7 @@ const newWorkspace = factory.createHandlers(
   async (c) => {
     const userId = c.get("userId");
     const body: NewWorkspaceInput = c.req.valid("json");
-    const newProject = await ProjectsService.new(
+    const newProject = await WorkspacesService.new(
       userId,
       body.name,
       body.description,
@@ -36,7 +36,7 @@ const newWorkspace = factory.createHandlers(
 
 const getAllWorkspaces = factory.createHandlers(async (c) => {
   const userId = c.get("userId");
-  const projects = await ProjectsService.getAll(userId);
+  const projects = await WorkspacesService.getAll(userId);
   return c.json(
     {
       success: true,
@@ -51,7 +51,10 @@ const getWorkspace = factory.createHandlers(
   async (c) => {
     const userId = c.get("userId");
     const { workspaceId } = c.req.valid("param");
-    const workspace: Workspace = await ProjectsService.get(userId, workspaceId);
+    const workspace: Workspace = await WorkspacesService.get(
+      userId,
+      workspaceId,
+    );
 
     return c.json(
       {
@@ -71,7 +74,7 @@ const updateWorkspaceName = factory.createHandlers(
     const { workspaceId } = c.req.valid("param");
     const body: UpdateWorkspaceInput = c.req.valid("json");
 
-    const updatedWorkspace: Workspace = await ProjectsService.updateName(
+    const updatedWorkspace: Workspace = await WorkspacesService.updateName(
       userId,
       workspaceId,
       body.newName,
@@ -92,7 +95,7 @@ const deleteWorkspace = factory.createHandlers(
   async (c) => {
     const userId = c.get("userId");
     const { workspaceId } = c.req.valid("param");
-    await ProjectsService.delete(userId, workspaceId);
+    await WorkspacesService.delete(userId, workspaceId);
 
     return c.json(
       {

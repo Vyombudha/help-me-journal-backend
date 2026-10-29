@@ -1,13 +1,31 @@
 # Help Me Journal Backend
 
-A TypeScript API for managing journal projects and their entries. It runs on
+A TypeScript API for managing journal workspaces and their pages. It runs on
 Cloudflare Workers, uses Hono for HTTP routing, Clerk for authentication, and
 Prisma with Cloudflare D1 (SQLite) for persistence.
+
+## Commands
+
+| Order | Command | Description |
+| --- | --- | --- |
+| Install | `bun install` | Install dependencies |
+| Dev | `bun run dev` | Generate the Prisma client and start the local Worker |
+| Test | `bun run test` | Run the integration tests |
+| Test | `bun run test:watch` | Run the integration tests in watch mode |
+| Typecheck | `bun run typecheck` | Type-check the application |
+| Typecheck | `bun run typecheck:test` | Type-check the tests |
+| Database | `bun run db:diff` | Generate SQL from the Prisma schema |
+| Database | `bun run db:migrate:local` | Apply migrations to local D1 |
+| Database | `bun run db:migrate:remote` | Apply migrations to remote D1 |
+| Deploy | `bunx wrangler login` | Authenticate Wrangler with Cloudflare |
+| Deploy | `bunx wrangler d1 create journal-db` | Create the D1 database for this Worker |
+| Deploy | `bunx wrangler secret put CLERK_SECRET_KEY` | Set the deployed Clerk secret |
+| Deploy | `bun run deploy` | Generate the Prisma client and deploy the Worker |
 
 ## Features
 
 - Clerk-authenticated API with data scoped to the signed-in user
-- Project and journal-container management
+- Workspace and page management
 - Zod request validation
 - CORS support for the frontend and local development
 - API rate limiting (300 requests per 15-minute window, keyed by client IP)
@@ -20,88 +38,173 @@ Prisma with Cloudflare D1 (SQLite) for persistence.
 - A Cloudflare account with a D1 database
 - A Clerk application
 
-## Local development
+## Setup from a fresh clone
 
-### 1. Install dependencies
+Run these steps from a terminal. You need Bun, Git, a Clerk application, and a
+Cloudflare account.
+
+1. Clone the repository and enter its directory:
+
+   ```sh
+   git clone https://github.com/Vyombudha/help-me-journal-backend.git && cd help-me-journal-backend
+   ```
+
+2. Install dependencies:
+
+   ```sh
+   bun install
+   ```
+
+3. Create `.dev.vars` with the Clerk secret key from your Clerk dashboard. The
+   command prompts for the value without displaying it:
+
+   ```sh
+   read -rsp "Clerk secret key: " CLERK_SECRET_KEY; printf '\nCLERK_SECRET_KEY=%s\n' "$CLERK_SECRET_KEY" > .dev.vars; unset CLERK_SECRET_KEY
+   ```
+
+   `.dev.vars` is used by Wrangler for local development and is ignored by
+   Git. Do not commit or share the secret.
+
+4. Generate the Prisma client:
+
+   ```sh
+   bunx prisma generate --config prisma7.config.ts
+   ```
+
+5. Apply migrations to the local D1 database:
+
+   ```sh
+   bun run db:migrate:local
+   ```
+
+6. Run the integration tests:
+
+   ```sh
+   bun run test
+   ```
+
+7. Start the local Worker:
+
+   ```sh
+   bun run dev
+   ```
+
+8. In a second terminal, check the health endpoint:
+
+   ```sh
+   curl http://localhost:8787/health
+   ```
+
+   Expected response:
+
+   ```json
+   { "ok": true }
+   ```
+
+### Reset the local D1 database
+
+This removes Wrangler's local D1 data. Run it only when you intend to reset
+that local database, then reapply migrations:
 
 ```sh
-bun install
-```
-
-### 2. Configure Clerk
-
-Create a `.dev.vars` file in the repository root for local Worker secrets:
-
-```env
-CLERK_SECRET_KEY=your_clerk_secret_key
-```
-
-Keep the Clerk secret private. The Clerk publishable key is used by the
-frontend, not this API. Wrangler reads `.dev.vars` for local development; it is
-ignored by Git.
-
-`FRONTEND_URL` is configured in `wrangler.jsonc`. It currently allows
-`https://vyombudha.github.io`; the API also allows `http://localhost:5173` for
-local frontend development. Update the configured URL if the frontend origin
-changes.
-
-### 3. Apply local D1 migrations
-
-```sh
+rm -rf .wrangler/state/v3/d1
 bun run db:migrate:local
 ```
 
-The local database is managed by Wrangler under `.wrangler/`. The command
-applies SQL migrations from `migrations/` to the `journal-db` D1 binding.
+## First deployment
 
-### 4. Start the local Worker
+1. Authenticate Wrangler with Cloudflare:
 
-```sh
-bun run dev
-```
+   ```sh
+   bunx wrangler login
+   ```
 
-This generates the Prisma client and starts `wrangler dev`. Check that the
-Worker is responding:
+2. Create the D1 database:
 
-```sh
-curl http://localhost:8787/health
-```
+   ```sh
+   bunx wrangler d1 create journal-db
+   ```
 
-Expected response:
+   Copy the `database_id` from Wrangler's output into the `database_id` field
+   for the `DB` binding in `wrangler.jsonc`. Keep the existing binding name,
+   database name, and migrations directory.
 
-```json
-{ "ok": true }
-```
+3. Set the Clerk secret for the deployed Worker. Wrangler will prompt for its
+   value:
 
-## Deployment
+   ```sh
+   bunx wrangler secret put CLERK_SECRET_KEY
+   ```
 
-Authenticate Wrangler with Cloudflare if you have not already:
+4. Apply migrations to the remote D1 database:
 
-```sh
-bunx wrangler login
-```
+   ```sh
+   bun run db:migrate:remote
+   ```
 
-Set the Clerk secret for the deployed Worker:
+5. Deploy the Worker:
 
-```sh
-bunx wrangler secret put CLERK_SECRET_KEY
-```
+   ```sh
+   bun run deploy
+   ```
 
-Apply migrations to the remote D1 database before deploying:
+6. Check the deployed health endpoint. Enter the Worker URL shown by Wrangler
+   after deployment when prompted:
 
-```sh
-bun run db:migrate:remote
-```
+   ```sh
+   read -rp "Worker URL (for example https://name.account.workers.dev): " WORKER_URL; curl "${WORKER_URL%/}/health"
+   ```
 
-Deploy the Worker:
+   Expected response:
 
-```sh
-bun run deploy
-```
+   ```json
+   { "ok": true }
+   ```
 
-The D1 binding name, database ID, migration directory, and frontend origin are
-configured in `wrangler.jsonc`. Verify that the binding points to the intended
-database before applying remote migrations.
+## Migration workflow
+
+1. Edit `prisma/schema.prisma`.
+2. Generate SQL from the schema:
+
+   ```sh
+   bun run db:diff
+   ```
+
+3. Review the generated SQL for SQLite/D1 compatibility and save the migration
+   as the next sequential `migrations/000N_description.sql`. The `db:diff`
+   script generates a fresh-schema SQL diff; for an existing database, adapt
+   the output into a migration that changes the current schema rather than
+   replaying table-creation statements.
+   
+4. Apply the migration locally:
+
+   ```sh
+   bun run db:migrate:local
+   ```
+
+5. Run the integration tests:
+
+   ```sh
+   bun run test
+   ```
+
+6. Apply the migration remotely after verifying the target D1 database:
+
+   ```sh
+   bun run db:migrate:remote
+   ```
+
+Never edit a migration that has already been applied; add a new migration.
+
+## Troubleshooting
+
+| Error or symptom | Fix |
+| --- | --- |
+| `no such table` | Confirm a migration creates the table in `migrations/`, then run `bun run db:migrate:local`. Tests apply migrations to an isolated database, so update the migration files too. |
+| Prisma client is not generated or generated client imports fail | Run `bunx prisma generate --config prisma7.config.ts`. |
+| Missing `CLERK_SECRET_KEY` during local development | Add the Clerk secret to the repository-root `.dev.vars` file. |
+| API returns `401` | Send a valid Clerk session token; confirm the local Worker has the correct `CLERK_SECRET_KEY` in `.dev.vars`. |
+| Browser reports a CORS error | Confirm the frontend origin matches `FRONTEND_URL` in `wrangler.jsonc`; local frontend development on `http://localhost:5173` is also allowed. |
 
 ## API
 
@@ -120,8 +223,8 @@ Resource routes are under `/api/v1`. Successful responses use this shape:
 }
 ```
 
-Project and container IDs must be UUIDs. A user can only access their own
-projects and containers.
+Workspace and page IDs must be UUIDs. A user can only access their own
+workspaces and pages.
 
 ### Health
 
@@ -129,17 +232,17 @@ projects and containers.
 | --- | --- | --- | --- |
 | GET | `/health` | Not required | Service health check |
 
-### Projects
+### Workspaces
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/api/v1/projects` | List the current user's projects |
-| POST | `/api/v1/projects` | Create a project |
-| GET | `/api/v1/projects/:projectId` | Get a project |
-| PATCH | `/api/v1/projects/:projectId` | Update a project's name and description |
-| DELETE | `/api/v1/projects/:projectId` | Delete a project and its containers |
+| GET | `/api/v1/workspaces` | List the current user's workspaces |
+| POST | `/api/v1/workspaces` | Create a workspace |
+| GET | `/api/v1/workspaces/:workspaceId` | Get a workspace |
+| PATCH | `/api/v1/workspaces/:workspaceId` | Update a workspace's name and description |
+| DELETE | `/api/v1/workspaces/:workspaceId` | Delete a workspace and its pages |
 
-Create a project:
+Create a workspace:
 
 ```json
 {
@@ -149,9 +252,9 @@ Create a project:
 ```
 
 On creation, `name` is trimmed and must be 1-30 characters; `description` must
-be 1-200 characters. Project names must be unique for each owner.
+be 1-200 characters. Workspace names must be unique for each owner.
 
-Update a project (both fields are required):
+Update a workspace (both fields are required):
 
 ```json
 {
@@ -162,29 +265,28 @@ Update a project (both fields are required):
 
 The updated `newName` is trimmed and must be 1-100 characters.
 
-### Containers
+### Pages
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/api/v1/projects/:projectId/containers` | List a project's containers |
-| POST | `/api/v1/projects/:projectId/containers` | Create a container in a project |
-| GET | `/api/v1/containers/:containerId` | Get a container |
-| PATCH | `/api/v1/containers/:containerId/title` | Update a container's title |
-| PATCH | `/api/v1/containers/:containerId/content` | Update a container's content |
-| DELETE | `/api/v1/containers/:containerId` | Delete a container |
+| GET | `/api/v1/workspaces/:workspaceId/pages` | List a workspace's pages |
+| POST | `/api/v1/workspaces/:workspaceId/pages` | Create a page in a workspace |
+| GET | `/api/v1/pages/:pageId` | Get a page |
+| PATCH | `/api/v1/pages/:pageId/title` | Update a page's title |
+| PATCH | `/api/v1/pages/:pageId/content` | Update a page's content |
+| DELETE | `/api/v1/pages/:pageId` | Delete a page |
 
-Create a container:
+Create a page:
 
 ```json
 {
   "title": "Morning Journal",
-  "type": "JOURNAL",
   "moods": ["HAPPY", "CALM"]
 }
 ```
 
-`title` is trimmed and must be 1-100 characters. `type` must be `JOURNAL` or
-`TECHNICAL_NOTE`. `moods` is a required array; supported values are `HAPPY`,
+`title` is trimmed and must be 1-500 characters. `moods` is a required array;
+supported values are `HAPPY`,
 `CALM`, `SAD`, `ANGRY`, `ANXIOUS`, `EXCITED`, `TIRED`, and `NEUTRAL`.
 
 Update a title:
@@ -204,9 +306,8 @@ Update content:
 ```
 
 Both update fields are required and trimmed. `newContent` can be any string,
-including an empty string, with no length limit. The API does not currently
-expose endpoints for changing a container's type, moods, or template
-configuration.
+including an empty string, with no length limit. The API does not currently expose endpoints for changing a page's status,
+moods, or template configuration.
 
 ### Errors and limits
 
@@ -222,14 +323,14 @@ Errors return JSON with `success: false` and a `message`. Common status codes:
 ## Data model
 
 - **User:** Clerk user ID, unique email, optional name, and timestamps.
-- **Project:** UUID, name, description, owner, status (`IN_PROGRESS`,
-  `COMPLETED`, or `ABANDONED`), and timestamps.
-- **Container:** UUID, title, content, type, moods, optional template
-  configuration, parent project, and timestamps.
+- **Workspace:** UUID, name, description, owner, and timestamps.
+- **Page:** UUID, title, content, status (`IN_PROGRESS`, `COMPLETED`, or
+  `ABANDONED`), moods, optional template configuration, parent workspace, and
+  timestamps.
 
-Deleting a user cascades to their projects; deleting a project cascades to its
-containers. Project names are unique per owner, and container titles are
-unique per project.
+Deleting a user cascades to their workspaces; deleting a workspace cascades to
+its pages. Workspace names are unique per owner, and page titles are unique
+per workspace.
 
 ## Database migrations
 
@@ -285,14 +386,14 @@ Test type-checking is available separately:
 bun run typecheck:test
 ```
 
-## Project layout
+## Repository layout
 
 ```text
 src/
   app.ts                 Hono app, middleware, and route mounting
   modules/
-    Projects/            Project routes, validation, controllers, and services
-    Containers/          Container routes, validation, controllers, and services
+    Workspaces/          Workspace routes, validation, controllers, and services
+    Pages/               Page routes, validation, controllers, and services
   shared/
     db/                  Prisma client and D1 adapter
     middleware/          Authentication, rate limiting, and error handling

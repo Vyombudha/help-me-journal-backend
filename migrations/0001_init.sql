@@ -1,6 +1,4 @@
--- D1 (SQLite) version of the original Postgres init migration.
--- Enums become TEXT (Prisma validates them in the client), JSONB/DateTime map to SQLite types.
-
+-- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "email" TEXT NOT NULL,
@@ -9,30 +7,37 @@ CREATE TABLE "User" (
     "updatedAt" DATETIME NOT NULL
 );
 
-CREATE TABLE "Project" (
+-- CreateTable
+CREATE TABLE "Workspace" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
     "ownerId" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'IN_PROGRESS',
-    CONSTRAINT "Project_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "Workspace_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE "Container" (
+-- CreateTable
+CREATE TABLE "Page" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "title" TEXT NOT NULL,
-    "projectId" TEXT NOT NULL,
+    "workspaceId" TEXT NOT NULL,
     "content" TEXT NOT NULL DEFAULT '',
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
-    "type" TEXT NOT NULL DEFAULT 'JOURNAL',
+    "status" TEXT NOT NULL DEFAULT 'IN_PROGRESS',
     "templateConfig" JSONB,
-    "moods" JSONB NOT NULL DEFAULT '[]',
-    CONSTRAINT "Container_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "moods" JSONB NOT NULL DEFAULT [],
+    CONSTRAINT "Page_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+-- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
-CREATE UNIQUE INDEX "Project_ownerId_name_key" ON "Project"("ownerId", "name");
-CREATE UNIQUE INDEX "Container_projectId_title_key" ON "Container"("projectId", "title");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Workspace_ownerId_name_key" ON "Workspace"("ownerId", "name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Page_workspaceId_title_key" ON "Page"("workspaceId", "title");
+

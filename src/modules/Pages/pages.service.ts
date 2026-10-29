@@ -3,13 +3,13 @@ import { prisma } from "../../shared/db/prisma.js";
 
 const createPage = async (
   ownerId: string,
-  projectId: string,
+  workspaceId: string,
   title: string,
   moods: Mood[],
 ): Promise<Page> => {
   await prisma.workspace.findFirstOrThrow({
     where: {
-      id: projectId,
+      id: workspaceId,
       ownerId,
     },
   });
@@ -17,7 +17,7 @@ const createPage = async (
   return await prisma.page.create({
     data: {
       title,
-      projectId,
+      workspaceId,
       moods,
     },
   });
@@ -49,7 +49,7 @@ const getPage = async (ownerId: string, pageId: string): Promise<Page> => {
   return await prisma.page.findFirstOrThrow({
     where: {
       id: pageId,
-      project: {
+      workspace: {
         ownerId,
       },
     },
@@ -67,7 +67,7 @@ const updatePageTitle = async (
     },
     where: {
       id: pageId,
-      project: {
+      workspace: {
         ownerId,
       },
     },
@@ -85,7 +85,7 @@ const updatePageContent = async (
     },
     where: {
       id: pageId,
-      project: {
+      workspace: {
         ownerId,
       },
     },
@@ -96,7 +96,7 @@ const deletePage = async (ownerId: string, pageId: string): Promise<void> => {
   await prisma.page.delete({
     where: {
       id: pageId,
-      project: {
+      workspace: {
         ownerId,
       },
     },
