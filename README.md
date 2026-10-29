@@ -14,7 +14,7 @@ Prisma with Cloudflare D1 (SQLite) for persistence.
 | Test | `bun run test:watch` | Run the integration tests in watch mode |
 | Typecheck | `bun run typecheck` | Type-check the application |
 | Typecheck | `bun run typecheck:test` | Type-check the tests |
-| Database | `bun run db:diff` | Generate SQL from the Prisma schema |
+| Database | `bun run db:diff` | Generate initial SQL for a fresh database |
 | Database | `bun run db:migrate:local` | Apply migrations to local D1 |
 | Database | `bun run db:migrate:remote` | Apply migrations to remote D1 |
 | Deploy | `bunx wrangler login` | Authenticate Wrangler with Cloudflare |
@@ -163,38 +163,64 @@ bun run db:migrate:local
 
 ## Migration workflow
 
-1. Edit `prisma/schema.prisma`.
-2. Generate SQL from the schema:
+For a schema change after the first migration, follow these steps from the
+repository root. These commands use the local Wrangler D1 SQLite file as the
+diff source; Prisma's `migrate diff` does not provide a `--from-local-d1`
+option.
 
-   ```sh
-   bun run db:diff
-   ```
-
-3. Review the generated SQL for SQLite/D1 compatibility and save the migration
-   as the next sequential `migrations/000N_description.sql`. The `db:diff`
-   script generates a fresh-schema SQL diff; for an existing database, adapt
-   the output into a migration that changes the current schema rather than
-   replaying table-creation statements.
-   
-4. Apply the migration locally:
+1. Edit `prisma/schema.prisma`, then apply all existing migrations to local
+   D1 so the diff starts from the current database schema:
 
    ```sh
    bun run db:migrate:local
    ```
 
-5. Run the integration tests:
+2. Create the next numbered migration file:
+
+   ```sh
+   bunx wrangler d1 migrations create journal-db workspace_pages
+   ```
+
+3. Generate SQL for only the changes between local D1 and the Prisma schema,
+   writing it to the migration file created in the previous step:
+
+   ```sh
+   D1_DB_FILE="$(find .wrangler/state/v3/d1/miniflare-D1DatabaseObject -maxdepth 1 -type f -name '*.sqlite' ! -name 'metadata.sqlite' -print -quit)"
+   MIGRATION_FILE="$(ls -t migrations/*.sql | head -n 1)"
+   if [ -z "$D1_DB_FILE" ] || [ -z "$MIGRATION_FILE" ]; then
+     printf 'Could not find the local D1 database or migration file.\n' >&2
+     exit 1
+   fi
+   DATABASE_URL="file:$D1_DB_FILE" bunx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script --output "$MIGRATION_FILE"
+   ```
+
+   The command requires the local database file created by Wrangler after step
+   1 and targets the newest migration file created in step 2.
+
+4. Review the new SQL file and ensure it contains the intended change. Do not
+   apply it if the file is empty or contains an unexpected full-schema
+   recreation.
+5. Apply the new migration locally:
+
+   ```sh
+   bun run db:migrate:local
+   ```
+
+6. Run the integration tests:
 
    ```sh
    bun run test
    ```
 
-6. Apply the migration remotely after verifying the target D1 database:
+7. After verifying the target D1 database, apply the migration remotely:
 
    ```sh
    bun run db:migrate:remote
    ```
 
-Never edit a migration that has already been applied; add a new migration.
+Never edit a migration that has already been applied. Wrangler tracks applied
+migrations by filename and skips a filename it has already recorded; create a
+new migration instead.
 
 ## Troubleshooting
 
@@ -334,24 +360,10 @@ per workspace.
 
 ## Database migrations
 
-SQL migrations for D1 live in `migrations/`. Apply them locally or remotely
-with:
-
-```sh
-bun run db:migrate:local
-bun run db:migrate:remote
-```
-
-To print SQL for a fresh database after changing `prisma/schema.prisma`:
-
-```sh
-bun run db:diff
-```
-
-Review generated SQL for SQLite/D1 compatibility, save the migration under
-`migrations/` with the next sequential name, and apply it locally before
-deploying. Do not edit an already-applied migration; add a new migration
-instead.
+SQL migrations for D1 live in `migrations/`. Use the migration workflow above
+for schema changes. `bun run db:diff` compares the Prisma schema to an empty
+database, so use it only to generate the initial migration for a fresh
+database; it is not suitable for later changes.
 
 ## Development checks and tests
 
