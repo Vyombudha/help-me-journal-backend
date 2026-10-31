@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "journaling-app",
+  "main": "src/server.ts",
+  "compatibility_date": "2026-10-30",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "journal-db",
+      "database_id": "18193c73-9160-4550-94ca-0762d3796b7d",
+      "migrations_dir": "./db/migrations",
+    },
+  ],
+  "vars": {
+    "FRONTEND_URL": "http://localhost:5173",
+  },
+}
