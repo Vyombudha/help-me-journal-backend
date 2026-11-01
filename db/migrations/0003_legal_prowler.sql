@@ -1,0 +1,1 @@
+DROP INDEX `pages_workspace_id_title_unique`;

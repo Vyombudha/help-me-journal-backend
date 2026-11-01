@@ -1,6 +1,12 @@
 // src/db/schema.ts
-import { sqliteTable, text, integer, unique } from "drizzle-orm/sqlite-core";
-
+import {
+  sqliteTable,
+  text,
+  integer,
+  unique,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 // SQLite has no enums, so we keep the values in arrays and use them as text constraints
 export const WORKSPACE_STATUSES = [
   "IN_PROGRESS",
@@ -60,37 +66,38 @@ export const workspaces = sqliteTable(
       .$defaultFn(() => new Date())
       .$onUpdate(() => new Date()),
   },
-  (t) => [unique().on(t.ownerId, t.name)],
+  (t) => [
+    unique().on(t.ownerId, t.name),
+    uniqueIndex("one_default_per_owner")
+      .on(t.ownerId)
+      .where(sql`${t.isDefault} = 1`),
+  ],
 );
 
-export const pages = sqliteTable(
-  "pages",
-  {
-    id: text("id")
-      .primaryKey()
-      .$defaultFn(() => crypto.randomUUID()),
-    title: text("title").notNull(),
-    content: text("content").notNull().default(""),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
-    templateConfig: text("template_config", { mode: "json" }).$type<
-      Record<string, unknown>
-    >(),
-    moods: text("moods", { mode: "json" })
-      .$type<Mood[]>()
-      .notNull()
-      .$defaultFn(() => []),
-    createdAt: integer("created_at", { mode: "timestamp" })
-      .notNull()
-      .$defaultFn(() => new Date()),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
-      .notNull()
-      .$defaultFn(() => new Date())
-      .$onUpdate(() => new Date()),
-  },
-  (t) => [unique().on(t.workspaceId, t.title)],
-);
+export const pages = sqliteTable("pages", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  title: text("title").notNull(),
+  content: text("content").default(""),
+  workspaceId: text("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  templateConfig: text("template_config", { mode: "json" }).$type<
+    Record<string, unknown>
+  >(),
+  moods: text("moods", { mode: "json" })
+    .$type<Mood[]>()
+    .notNull()
+    .$defaultFn(() => []),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+});
 
 import { relations } from "drizzle-orm";
 

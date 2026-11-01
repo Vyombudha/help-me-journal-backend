@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `one_default_per_owner` ON `workspaces` (`owner_id`) WHERE "workspaces"."is_default" = 1;

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { MOODS } from "../../../db/schema";
 
 export const NewPageSchema = z.object({
-  title: z.string().trim().min(1).max(500),
+  title: z.string().trim().min(5).max(500),
   moods: z.array(z.enum(MOODS)),
 });
 

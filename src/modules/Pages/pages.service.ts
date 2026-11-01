@@ -40,7 +40,7 @@ const createPage = async (
 const getAllPages = async (ownerId: string, workspaceId: string) => {
   await assertWorkspaceOwned(ownerId, workspaceId);
   return db
-    .select({ id: pages.id, title: pages.title })
+    .select({ id: pages.id, title: pages.title, content: pages.content })
     .from(pages)
     .where(eq(pages.workspaceId, workspaceId))
     .orderBy(asc(pages.createdAt));
