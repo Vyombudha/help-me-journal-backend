@@ -1,4 +1,3 @@
-// shared/middleware/errorHandler.middleware.ts
 import type { ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";

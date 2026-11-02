@@ -39,11 +39,6 @@ export const createRequireAuth = (
       const workspaceId = crypto.randomUUID();
       const welcomeContent = JSON.stringify([
         {
-          type: "heading",
-          props: { level: 1 },
-          content: [{ type: "text", text: "Welcome", styles: {} }],
-        },
-        {
           type: "paragraph",
           content: [
             {
@@ -54,6 +49,7 @@ export const createRequireAuth = (
           ],
         },
       ]);
+      const welcomeTitle = "Welcome To Help Me Journal!";
       try {
         await db.batch([
           db.insert(users).values({
@@ -70,7 +66,7 @@ export const createRequireAuth = (
           }),
           db.insert(pages).values({
             workspaceId,
-            title: "Welcome",
+            title: welcomeTitle,
             content: welcomeContent,
             moods: [],
           }),

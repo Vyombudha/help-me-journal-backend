@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "journaling-app",
+  "name": "help-me-journal-backend",
   "main": "src/server.ts",
   "compatibility_date": "2026-10-30",
   "d1_databases": [
