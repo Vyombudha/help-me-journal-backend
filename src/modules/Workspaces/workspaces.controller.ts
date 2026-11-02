@@ -17,7 +17,6 @@ const factory = createFactory<AppEnv>();
 const newWorkspace = factory.createHandlers(
   sValidator("json", NewWorkspaceSchema),
   async (c) => {
-    const db = c.get("db");
     const userId = c.get("userId");
     const body: NewWorkspaceInput = c.req.valid("json");
     const newProject = await WorkspacesService.new(
