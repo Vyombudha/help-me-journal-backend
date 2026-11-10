@@ -8,6 +8,7 @@
     "lib": [
       "ESNext"
     ],
+    "types": ["@cloudflare/vitest-plugin/types"],
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx"
   },
