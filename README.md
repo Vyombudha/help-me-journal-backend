@@ -43,6 +43,17 @@ bun run db:gen      # Generate migrations from schema changes
 bun run db:local    # Apply migrations to local D1
 bun run db:remote   # Apply migrations to the configured remote D1 database
 ```
+## Testing
+
+Integration tests run inside the Workers runtime with `@cloudflare/vitest-plugin`, against a real local D1 database. Migrations from `db/migrations/` are applied automatically before each test file, and Clerk is replaced with a fake, so no credentials or network access are needed.
+
+```sh
+bun run test
+```
+
+The suite covers user provisioning on first request, workspace and page CRUD, request validation, and ownership checks (one user cannot read, change, or delete another user's workspaces or pages).
+
+If you change the schema, run `bun run db:gen` first so the tests pick up the new migration.
 
 ## Deployment
 
