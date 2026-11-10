@@ -12,6 +12,6 @@
     },
   ],
   "vars": {
-    "FRONTEND_URL": "https://vyombudha.github.io/help-me-journal-frontend/",
+    "FRONTEND_URL": "https://vyombudha.github.io/",
   },
 }
