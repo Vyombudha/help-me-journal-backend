@@ -1,56 +1,14 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { createHonoServer } from "../app";
-import type { MiddlewareHandler } from "hono";
-import type { AppEnv } from "../shared/types/hono";
-import { createRequireAuth } from "../shared/middleware/auth.middleware";
 import { db } from "../../db";
 import { pages, users, workspaces } from "../../db/schema";
 import { and, eq } from "drizzle-orm";
-
-const noClerk: MiddlewareHandler<AppEnv> = async (_c, next) => next();
-
-type User = {
-  id: string;
-  firstName: string;
-  emailAddress: string;
-};
-
-const USER_1: User = {
-  id: "test_user_1",
-  firstName: "test_user_1_name",
-  emailAddress: "test_user_1@example.com",
-};
-
-const USER_2: User = {
-  id: "test_user_2",
-  firstName: "test_user_2_name",
-  emailAddress: "test_user_2@example.com",
-};
-
-function makeApp(user: User = USER_1) {
-  const auth = createRequireAuth(
-    () => user.id,
-    async () => ({
-      firstName: user.firstName,
-      emailAddresses: [{ emailAddress: user.emailAddress }],
-    }),
-  );
-  return createHonoServer(noClerk, auth);
-}
-
-function json(method: string, body?: unknown) {
-  return {
-    method,
-    headers: { "content-type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  };
-}
+import { makeApp, USER_1, json, USER_2 } from "./test.setup";
 
 beforeEach(async () => {
   await db.delete(users);
 });
 
-describe("/POST /api/v1/workspaces/:workspaceId/pages", () => {
+describe("POST /api/v1/workspaces/:workspaceId/pages", () => {
   let pageId: string;
   let workspaceId: string;
   beforeEach(async () => {
@@ -72,7 +30,7 @@ describe("/POST /api/v1/workspaces/:workspaceId/pages", () => {
     pageId = page!.id;
   });
 
-  it("POST creates a new page for user in given workspace", async () => {
+  it("creates a new page for user in given workspace", async () => {
     const app = makeApp();
     const res = await app.request(
       `/api/v1/workspaces/${workspaceId}/pages`,
@@ -89,7 +47,7 @@ describe("/POST /api/v1/workspaces/:workspaceId/pages", () => {
     expect(newId).not.toBe(pageId); // it's a new page, not the seeded one
   });
 
-  it("POST rejects an invalid body", async () => {
+  it("rejects an invalid body", async () => {
     const res = await makeApp().request(
       `/api/v1/workspaces/${workspaceId}/pages`,
       json("POST", { title: "" }),
@@ -98,7 +56,7 @@ describe("/POST /api/v1/workspaces/:workspaceId/pages", () => {
   });
 });
 
-describe("/PATCH /api/v1/pages/:pageId", () => {
+describe("PATCH /api/v1/pages/:pageId", () => {
   let pageId: string;
   let workspaceId: string;
   beforeEach(async () => {
@@ -120,7 +78,7 @@ describe("/PATCH /api/v1/pages/:pageId", () => {
     pageId = page!.id;
   });
 
-  it("PATCH updates only on title", async () => {
+  it("updates only on title", async () => {
     const app = makeApp();
 
     const res = await app.request(
@@ -137,7 +95,7 @@ describe("/PATCH /api/v1/pages/:pageId", () => {
     expect(after?.content).toBe("[]"); // untouched
   });
 
-  it("PATCH updates only on content", async () => {
+  it("updates only on content", async () => {
     const app = makeApp();
 
     const res = await app.request(
