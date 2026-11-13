@@ -27,12 +27,12 @@ export const createHonoServer = (
       maxAge: 600,
     }),
   );
+  app.use(apiLimiter);
 
   app.get("/health", (c) => c.json({ ok: true }));
 
   app.use(clerkAuth);
   app.use(requireAuthentication);
-  app.use(apiLimiter);
   app.route("/api/v1/workspaces", WorkspacesRouter);
   app.route("/api/v1/workspaces/:workspaceId/pages", WorkspacePagesRouter);
   app.route("/api/v1/pages", PagesRouter);
