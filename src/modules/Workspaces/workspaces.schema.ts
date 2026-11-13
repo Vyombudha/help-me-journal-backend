@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const NewWorkspaceSchema = z.object({
-  name: z.string().trim().min(1).max(30),
+  name: z.string().trim().min(1).max(100),
   description: z.string().min(1).max(200),
 });
 
