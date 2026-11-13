@@ -2,14 +2,14 @@ import { z } from "zod";
 import { MOODS } from "../../../db/schema";
 
 export const NewPageSchema = z.object({
-  title: z.string().trim().min(10).max(100),
+  title: z.string().trim().min(5).max(100),
   moods: z.array(z.enum(MOODS)),
 });
 
 export type NewPageInput = z.infer<typeof NewPageSchema>;
 
 export const UpdatePageNameSchema = z.object({
-  newTitle: z.string().trim().min(10).max(100),
+  newTitle: z.string().trim().min(5).max(100),
 });
 
 export type UpdatePageNameInput = z.infer<typeof UpdatePageNameSchema>;
